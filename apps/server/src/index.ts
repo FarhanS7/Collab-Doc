@@ -2,10 +2,13 @@
 import { env } from './lib/env.js';
 
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cookieParser from 'cookie-parser';
 import { requireAuth } from './middleware/requireAuth.js';
+import { docsRouter } from './routes/docs.js';
+import { AppError } from './lib/errors.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '@collab/types';
 
 const app = express();
@@ -29,14 +32,8 @@ app.get('/health', (_req, res) => {
 });
 
 // --- Protected API Routes ---
-// All /api routes require a valid NextAuth JWT in cookies.
-// Add route modules here as they are built (C.2–C.8, G.1, F.1 etc.)
 app.use('/api', requireAuth);
-
-// Placeholder — will be replaced with actual route modules in C.2+
-app.get('/api/ping', (req, res) => {
-  res.json({ message: 'authenticated', userId: req.user?.id });
-});
+app.use('/api/docs', docsRouter); // C.2-C.8 CRUD routes
 
 // --- Socket.io ---
 io.on('connection', (socket) => {
@@ -46,7 +43,26 @@ io.on('connection', (socket) => {
   });
 });
 
+// --- Global Error Handler ---
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      code: err.code,
+      message: err.message,
+    });
+    return;
+  }
+
+  // Unhandled errors
+  console.error('[Unhandled Error]', err);
+  res.status(500).json({
+    code: 'INTERNAL_SERVER_ERROR',
+    message: 'An unexpected error occurred',
+  });
+});
+
 // --- Start Server ---
+
 const PORT = env.PORT;
 server.listen(PORT, () => {
   console.log(`[server] Express + Socket.io running on port ${PORT}`);
