@@ -1,0 +1,27 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy workspace config files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json tsconfig.base.json ./
+
+# Copy package manifests for dependency resolution
+COPY packages/types/package.json ./packages/types/
+COPY apps/server/package.json ./apps/server/
+
+# Install dependencies using workspace protocol
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY packages/types ./packages/types
+COPY apps/server ./apps/server
+
+WORKDIR /app/apps/server
+
+EXPOSE 4000
+
+# Use node --watch for native hot reload (no nodemon needed)
+CMD ["node", "--watch", "--import", "tsx", "src/index.ts"]

@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: collab_postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: collab_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile.dev
+    container_name: collab_server
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "4000:4000"
+    volumes:
+      # Bind mount source code for hot reload
+      - ./apps/server:/app/apps/server
+      - ./packages/types:/app/packages/types
+      # Anonymous volume to prevent overwriting node_modules inside container
+      - /app/apps/server/node_modules
+      - /app/packages/types/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    name: collab_postgres_data
+  redis_data:
+    name: collab_redis_data
