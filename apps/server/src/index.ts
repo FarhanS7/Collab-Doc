@@ -1,3 +1,6 @@
+// Must be imported first — validates env vars and exits with clear errors if missing
+import { env } from './lib/env.js';
+
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -22,7 +25,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = env.PORT;
 server.listen(PORT, () => {
   console.log(`Express server running on port ${PORT}`);
 });
