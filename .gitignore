@@ -4,6 +4,7 @@
 **/*.md
 template.html
 **/template.html
+docs/
 
 # Node / Nest / Express dependencies
 node_modules/
@@ -19,6 +20,12 @@ out/
 build/
 dist/
 .turbo/
+
+# Turborepo cache
+.turbo/
+
+# Pnpm
+pnpm-debug.log*
 
 # Environment Variables
 .env
