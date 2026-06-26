@@ -6,7 +6,6 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
-// @ts-expect-error no types for lodash.debounce default import
 import debounce from 'lodash.debounce';
 import * as Y from 'yjs';
 import EditorToolbar from './EditorToolbar';
