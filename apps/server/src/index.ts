@@ -41,6 +41,45 @@ const io = new Server<
 // Configure Socket.io Redis adapter for horizontal scaling
 io.adapter(createAdapter(pubClient, subClient));
 
+// Subscribe to document updates from Redis Pub/Sub channels (cross-instance sync)
+subClient.psubscribe('doc:*:updates').then(() => {
+  console.log('[Redis] Subscribed to doc:*:updates pattern');
+}).catch((err) => {
+  console.error('[Redis] Failed to subscribe to doc:*:updates pattern:', err);
+});
+
+subClient.on('pmessage', (pattern, channel, message) => {
+  try {
+    const channelParts = channel.split(':');
+    const documentId = channelParts[1];
+    const roomName = `doc:${documentId}`;
+
+    const { sender, update: updateBase64 } = JSON.parse(message);
+    const updateBuffer = Buffer.from(updateBase64, 'base64');
+    
+    // Get the ArrayBuffer representation safely from Node.js Buffer
+    const arrayBuffer = updateBuffer.buffer.slice(
+      updateBuffer.byteOffset,
+      updateBuffer.byteOffset + updateBuffer.byteLength
+    ) as ArrayBuffer;
+
+    // Emit ONLY locally to clients in this room on this server instance (excluding original sender)
+    const localRoomSockets = io.sockets.adapter.rooms.get(roomName);
+    if (localRoomSockets) {
+      for (const socketId of localRoomSockets) {
+        if (socketId !== sender) {
+          const clientSocket = io.sockets.sockets.get(socketId);
+          if (clientSocket) {
+            clientSocket.emit('y-update', arrayBuffer);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error handling Redis update message:', err);
+  }
+});
+
 // --- Global Middleware ---
 app.use(express.json());
 app.use(cookieParser()); // Must come BEFORE requireAuth
@@ -117,7 +156,7 @@ io.on('connection', (socket) => {
       // Check document existence and access permissions via Prisma
       const doc = await prisma.document.findFirst({
         where: { id: documentId, deletedAt: null },
-        select: { id: true, isPublic: true },
+        select: { id: true, isPublic: true, yDocState: true },
       });
 
       if (!doc) {
@@ -141,8 +180,39 @@ io.on('connection', (socket) => {
       const roomName = `doc:${documentId}`;
       socket.join(roomName);
       console.log(`[Socket ${socket.id}] User ${userId} successfully joined room ${roomName}`);
+
+      // Hydrate client with current Y.js document state (safely sliced Buffer -> ArrayBuffer)
+      const arrayBuffer = doc.yDocState.buffer.slice(
+        doc.yDocState.byteOffset,
+        doc.yDocState.byteOffset + doc.yDocState.byteLength
+      ) as ArrayBuffer;
+      socket.emit('y-update', arrayBuffer);
     } catch (err) {
       console.error(`Error in join-room handler for socket ${socket.id}:`, err);
+    }
+  });
+
+  socket.on('y-update', (update: ArrayBuffer) => {
+    try {
+      // Broadcast this update via Redis Pub/Sub to all instances
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((room) => {
+        if (room.startsWith('doc:')) {
+          const documentId = room.split(':')[1];
+          const redisChannel = `doc:${documentId}:updates`;
+
+          const payload = JSON.stringify({
+            sender: socket.id,
+            update: Buffer.from(update).toString('base64'),
+          });
+
+          pubClient.publish(redisChannel, payload).catch((err) => {
+            console.error(`[Redis] Failed to publish update for document ${documentId}:`, err);
+          });
+        }
+      });
+    } catch (err) {
+      console.error(`Error in y-update socket event handler:`, err);
     }
   });
 
