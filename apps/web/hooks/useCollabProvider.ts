@@ -42,6 +42,10 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
         name: userName || 'Anonymous',
         color: getDeterministicColor(userId),
       });
+
+      // Task E.8: Emit sync step 1 (Client State Vector) to kickstart reconnection sync
+      const localStateVector = Y.encodeStateVector(ydoc);
+      socket.emit('y-sync-step-1', localStateVector.buffer);
     });
 
     socket.on('disconnect', () => {
@@ -78,6 +82,18 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
     // 4. Receive remote awareness changes from the server and merge them locally
     socket.on('y-awareness', (update: ArrayBuffer) => {
       applyAwarenessUpdate(awareness, new Uint8Array(update), 'socket-sync');
+    });
+
+    // 5. Handle sync step 2 (Apply server updates, calculate client updates diff, emit back)
+    socket.on('y-sync-step-2', ({ diff, stateVector }: { diff: ArrayBuffer; stateVector: ArrayBuffer }) => {
+      Y.applyUpdate(ydoc, new Uint8Array(diff), 'socket-sync');
+
+      const serverStateVector = new Uint8Array(stateVector);
+      const clientDiff = Y.encodeStateAsUpdate(ydoc, serverStateVector);
+
+      if (clientDiff.length > 0) {
+        socket.emit('y-update', clientDiff.buffer);
+      }
     });
 
     return () => {

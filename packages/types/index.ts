@@ -47,9 +47,11 @@ export interface ClientToServerEvents {
   'join-room': (payload: JoinRoomPayload) => void;
   'y-update': (update: ArrayBuffer) => void;
   'y-awareness': (update: ArrayBuffer) => void;
+  'y-sync-step-1': (stateVector: ArrayBuffer) => void;
 }
 
 export interface ServerToClientEvents {
   'y-update': (update: ArrayBuffer) => void;
   'y-awareness': (update: ArrayBuffer) => void;
+  'y-sync-step-2': (payload: { diff: ArrayBuffer; stateVector: ArrayBuffer }) => void;
 }

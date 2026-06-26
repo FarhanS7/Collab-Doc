@@ -14,12 +14,15 @@ import { requireAuth } from './middleware/requireAuth.js';
 import { docsRouter } from './routes/docs.js';
 import { AppError } from './lib/errors.js';
 import type { ClientToServerEvents, ServerToClientEvents, JoinRoomPayload } from '@collab/types';
+import * as Y from 'yjs';
+import { getOrCreateDoc, applyUpdateAndQueueSave, unloadDocIfEmpty } from './lib/docManager.js';
 
 interface SocketData {
   user?: {
     id: string;
     email: string;
   };
+  documentId?: string;
 }
 
 const app = express();
@@ -48,7 +51,7 @@ subClient.psubscribe('doc:*:updates').then(() => {
   console.error('[Redis] Failed to subscribe to doc:*:updates pattern:', err);
 });
 
-subClient.on('pmessage', (pattern, channel, message) => {
+subClient.on('pmessage', async (pattern, channel, message) => {
   try {
     const channelParts = channel.split(':');
     const documentId = channelParts[1];
@@ -57,6 +60,14 @@ subClient.on('pmessage', (pattern, channel, message) => {
     const { sender, update: updateBase64 } = JSON.parse(message);
     const updateBuffer = Buffer.from(updateBase64, 'base64');
     
+    // 1. If we are NOT the server node directly connected to the sender client,
+    // apply the update to our local cache to keep the document state converged.
+    const localSocket = io.sockets.sockets.get(sender);
+    if (!localSocket) {
+      const ydoc = await getOrCreateDoc(documentId);
+      Y.applyUpdate(ydoc, new Uint8Array(updateBuffer));
+    }
+
     // Get the ArrayBuffer representation safely from Node.js Buffer
     const arrayBuffer = updateBuffer.buffer.slice(
       updateBuffer.byteOffset,
@@ -156,7 +167,7 @@ io.on('connection', (socket) => {
       // Check document existence and access permissions via Prisma
       const doc = await prisma.document.findFirst({
         where: { id: documentId, deletedAt: null },
-        select: { id: true, isPublic: true, yDocState: true },
+        select: { id: true, isPublic: true },
       });
 
       if (!doc) {
@@ -179,12 +190,17 @@ io.on('connection', (socket) => {
 
       const roomName = `doc:${documentId}`;
       socket.join(roomName);
+      socket.data.documentId = documentId; // Save documentId to socket data for cleanup on disconnect
       console.log(`[Socket ${socket.id}] User ${userId} successfully joined room ${roomName}`);
 
-      // Hydrate client with current Y.js document state (safely sliced Buffer -> ArrayBuffer)
-      const arrayBuffer = doc.yDocState.buffer.slice(
-        doc.yDocState.byteOffset,
-        doc.yDocState.byteOffset + doc.yDocState.byteLength
+      // Get the in-memory cached doc or load it from database
+      const serverDoc = await getOrCreateDoc(documentId);
+
+      // Hydrate client with the latest unified Y.js document state (safely sliced Buffer -> ArrayBuffer)
+      const yDocState = Y.encodeStateAsUpdate(serverDoc);
+      const arrayBuffer = yDocState.buffer.slice(
+        yDocState.byteOffset,
+        yDocState.byteOffset + yDocState.byteLength
       ) as ArrayBuffer;
       socket.emit('y-update', arrayBuffer);
     } catch (err) {
@@ -192,13 +208,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('y-update', (update: ArrayBuffer) => {
+  socket.on('y-update', async (update: ArrayBuffer) => {
     try {
-      // Broadcast this update via Redis Pub/Sub to all instances
+      const documentId = socket.data.documentId;
+      if (!documentId) return;
+
+      const updateBuffer = new Uint8Array(update);
+
+      // Apply to local cached Y.Doc AND queue/debounce save to database
+      await applyUpdateAndQueueSave(documentId, updateBuffer);
+
+      // Broadcast this update via Redis Pub/Sub to all other server nodes
       const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
       rooms.forEach((room) => {
         if (room.startsWith('doc:')) {
-          const documentId = room.split(':')[1];
           const redisChannel = `doc:${documentId}:updates`;
 
           const payload = JSON.stringify({
@@ -229,8 +252,49 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('y-sync-step-1', async (stateVector: ArrayBuffer) => {
+    try {
+      const documentId = socket.data.documentId;
+      if (!documentId) return;
+
+      // Get the in-memory cached doc or load it from database
+      const serverDoc = await getOrCreateDoc(documentId);
+      
+      const clientStateVector = new Uint8Array(stateVector);
+      const serverDiff = Y.encodeStateAsUpdate(serverDoc, clientStateVector);
+      const serverStateVector = Y.encodeStateVector(serverDoc);
+
+      const diffAB = serverDiff.buffer.slice(
+        serverDiff.byteOffset,
+        serverDiff.byteOffset + serverDiff.byteLength
+      ) as ArrayBuffer;
+
+      const svAB = serverStateVector.buffer.slice(
+        serverStateVector.byteOffset,
+        serverStateVector.byteOffset + serverStateVector.byteLength
+      ) as ArrayBuffer;
+
+      socket.emit('y-sync-step-2', {
+        diff: diffAB,
+        stateVector: svAB,
+      });
+    } catch (err) {
+      console.error(`Error in y-sync-step-1 socket event handler:`, err);
+    }
+  });
+
+  socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id, 'User:', socket.data.user?.email);
+    
+    const documentId = socket.data.documentId;
+    if (documentId) {
+      const roomName = `doc:${documentId}`;
+      const localRoom = io.sockets.adapter.rooms.get(roomName);
+      const activeConnectionsCount = localRoom ? localRoom.size : 0;
+      
+      // Perform final flush and clear from cache memory if no local connections remain
+      await unloadDocIfEmpty(documentId, activeConnectionsCount);
+    }
   });
 });
 
