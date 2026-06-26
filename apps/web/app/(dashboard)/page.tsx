@@ -25,15 +25,9 @@ export default function DashboardPage() {
 
   async function fetchDocuments() {
     try {
-      // In dev, the Express server is on port 4000. In prod, we'll use Next.js rewrites or a full URL.
-      // For now, assuming local dev setup where we hit the API proxy or the direct URL.
-      // Next.js rewrites are better for this. We'll assume a rewrite is setup: /api/ -> http://localhost:4000/api/
       const res = await fetch('/api/docs');
       if (!res.ok) {
-        if (res.status === 401) {
-          router.push('/login');
-          return;
-        }
+        if (res.status === 401) { router.push('/login'); return; }
         throw new Error('Failed to fetch documents');
       }
       const json = await res.json();
@@ -55,7 +49,7 @@ export default function DashboardPage() {
       });
       if (!res.ok) throw new Error('Failed to create document');
       const json = await res.json();
-      router.push(`/doc/${json.data.id}`); // Navigate to the new document
+      router.push(`/doc/${json.data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create document');
       setIsCreating(false);
@@ -64,9 +58,7 @@ export default function DashboardPage() {
 
   const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+      month: 'short', day: 'numeric', year: 'numeric',
     }).format(new Date(dateString));
   };
 
@@ -86,9 +78,9 @@ export default function DashboardPage() {
           {isCreating ? (
             <span className="spinner-small" />
           ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           )}
           <span>New Document</span>
@@ -97,24 +89,21 @@ export default function DashboardPage() {
 
       {error && (
         <div className="dashboard-error">
-          <span className="dashboard-error__icon">⚠</span>
+          <span>⚠</span>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="dashboard-loading">
-          <div className="spinner" />
-        </div>
+        <div className="dashboard-loading"><div className="spinner" /></div>
       ) : documents.length === 0 ? (
         <div className="dashboard-empty">
           <div className="dashboard-empty__icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           </div>
           <h3>No documents yet</h3>
@@ -128,12 +117,11 @@ export default function DashboardPage() {
           {documents.map((doc) => (
             <Link href={`/doc/${doc.id}`} key={doc.id} className="document-card">
               <div className="document-card__header">
-                <svg className="document-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
+                <svg className="document-card__icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
                 <span className={`role-badge role-badge--${doc.role}`}>{doc.role}</span>
               </div>
@@ -142,10 +130,7 @@ export default function DashboardPage() {
                 <div className="document-card__meta">
                   <span>Edited {formatDate(doc.updatedAt)}</span>
                   {doc.role !== 'owner' && (
-                    <>
-                      <span className="dot">•</span>
-                      <span>Owner: {doc.ownerName}</span>
-                    </>
+                    <><span className="dot">·</span><span>{doc.ownerName}</span></>
                   )}
                 </div>
               </div>
@@ -155,226 +140,125 @@ export default function DashboardPage() {
       )}
 
       <style>{`
-        .dashboard-content {
-          animation: fadeIn 0.4s ease-out;
-        }
-
+        .dashboard-content { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
 
         .dashboard-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 3rem;
-          flex-wrap: wrap;
-          gap: 1.5rem;
+          display: flex; justify-content: space-between; align-items: flex-start;
+          margin-bottom: 3rem; flex-wrap: wrap; gap: 1.5rem;
         }
-
         .dashboard-header__title {
-          font-family: 'Syne', sans-serif;
-          font-size: 2.5rem;
-          font-weight: 800;
-          letter-spacing: -0.03em;
+          font-size: 1.875rem; font-weight: 500; letter-spacing: -0.025em;
           margin-bottom: 0.5rem;
-          background: linear-gradient(135deg, #fff, #a5b4fc);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          background: linear-gradient(to bottom, #ffffff, #a3a3a3);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
+        .dashboard-header__subtitle { color: #78716c; font-size: 0.875rem; font-weight: 300; }
 
-        .dashboard-header__subtitle {
-          color: rgba(255, 255, 255, 0.5);
-          font-size: 1.125rem;
-        }
-
-        /* Buttons */
         .btn-create {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: #6366f1;
-          color: white;
-          border: none;
-          padding: 0.875rem 1.5rem;
-          border-radius: 12px;
-          font-family: 'DM Sans', sans-serif;
-          font-weight: 600;
-          font-size: 0.9375rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+          display: flex; align-items: center; gap: 0.5rem;
+          background: #fff; color: #000;
+          border: none; padding: 0.625rem 1.25rem;
+          border-radius: 0.5rem;
+          font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.75rem;
+          cursor: pointer; transition: background 0.2s;
         }
-        .btn-create:hover:not(:disabled) {
-          background: #4f46e5;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-        }
-        .btn-create:active:not(:disabled) {
-          transform: translateY(1px);
-        }
-        .btn-create:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
+        .btn-create:hover:not(:disabled) { background: #e7e5e4; }
+        .btn-create:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-create--outline {
-          background: transparent;
-          border: 1px solid rgba(99, 102, 241, 0.5);
-          box-shadow: none;
+          background: transparent; color: #a8a29e;
+          border: 1px solid rgba(255,255,255,0.1);
         }
-        .btn-create--outline:hover:not(:disabled) {
-          background: rgba(99, 102, 241, 0.1);
-        }
+        .btn-create--outline:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: #fff; }
 
-        /* Loading & Error */
-        .dashboard-loading {
-          display: flex;
-          justify-content: center;
-          padding: 4rem 0;
-        }
+        .dashboard-loading { display: flex; justify-content: center; padding: 4rem 0; }
         .spinner {
-          width: 32px; height: 32px;
-          border-radius: 50%;
-          border: 3px solid rgba(255,255,255,0.1);
-          border-top-color: #6366f1;
+          width: 24px; height: 24px; border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.1);
+          border-top-color: #3b82f6;
           animation: spin 0.8s linear infinite;
         }
         .spinner-small {
-          width: 18px; height: 18px;
-          border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.2);
-          border-top-color: #fff;
+          width: 14px; height: 14px; border-radius: 50%;
+          border: 2px solid rgba(0,0,0,0.15);
+          border-top-color: #000;
           animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .dashboard-error {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          color: #fca5a5;
-          padding: 1rem;
-          border-radius: 12px;
-          margin-bottom: 2rem;
+          display: flex; align-items: center; gap: 0.5rem;
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.15);
+          color: #fca5a5; padding: 0.75rem 1rem;
+          border-radius: 8px; margin-bottom: 2rem; font-size: 0.8125rem;
         }
 
-        /* Empty State */
         .dashboard-empty {
-          text-align: center;
-          padding: 5rem 2rem;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px dashed rgba(255, 255, 255, 0.1);
-          border-radius: 24px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
+          text-align: center; padding: 5rem 2rem;
+          background: rgba(255,255,255,0.02);
+          border: 1px dashed rgba(255,255,255,0.08);
+          border-radius: 16px;
+          display: flex; flex-direction: column; align-items: center; gap: 1rem;
         }
-        .dashboard-empty__icon {
-          color: rgba(255, 255, 255, 0.2);
-          margin-bottom: 1rem;
-        }
-        .dashboard-empty h3 {
-          font-size: 1.5rem;
-          font-family: 'Syne', sans-serif;
-        }
-        .dashboard-empty p {
-          color: rgba(255, 255, 255, 0.5);
-          margin-bottom: 1.5rem;
-        }
+        .dashboard-empty__icon { color: rgba(255,255,255,0.15); margin-bottom: 1rem; }
+        .dashboard-empty h3 { font-size: 1.25rem; font-weight: 500; }
+        .dashboard-empty p { color: #78716c; margin-bottom: 1.5rem; font-size: 0.875rem; }
 
-        /* Grid */
         .document-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 1.5rem;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 1rem;
         }
 
-        /* Card */
         .document-card {
-          display: flex;
-          flex-direction: column;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          padding: 1.5rem;
-          text-decoration: none;
-          color: inherit;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          height: 180px;
+          display: flex; flex-direction: column;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.05);
+          border-radius: 12px; padding: 1.5rem;
+          text-decoration: none; color: inherit;
+          transition: all 0.2s; height: 160px;
         }
         .document-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.15);
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+          background: rgba(255,255,255,0.04);
+          border-color: rgba(255,255,255,0.1);
+          transform: translateY(-2px);
         }
-        
         .document-card__header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
+          display: flex; justify-content: space-between; align-items: flex-start;
           margin-bottom: auto;
         }
-        
-        .document-card__icon {
-          width: 28px;
-          height: 28px;
-          color: #6366f1;
-          opacity: 0.8;
-        }
-
-        .document-card__body {
-          margin-top: 2rem;
-        }
-
+        .document-card__icon { color: #78716c; opacity: 0.6; }
+        .document-card__body { margin-top: 1.5rem; }
         .document-card__title {
-          font-family: 'Syne', sans-serif;
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin-bottom: 0.5rem;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          font-size: 1rem; font-weight: 500; margin-bottom: 0.375rem;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          letter-spacing: -0.02em;
         }
-
         .document-card__meta {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.8125rem;
-          color: rgba(255, 255, 255, 0.4);
-        }
-        .dot {
-          font-size: 0.5rem;
+          display: flex; align-items: center; gap: 0.375rem;
+          font-size: 0.6875rem; color: #78716c; font-weight: 400;
         }
 
-        /* Role Badges */
         .role-badge {
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          padding: 0.25rem 0.5rem;
-          border-radius: 6px;
+          font-size: 0.625rem; font-weight: 600; text-transform: uppercase;
+          padding: 0.1875rem 0.5rem; border-radius: 9999px;
           letter-spacing: 0.05em;
         }
         .role-badge--owner {
-          background: rgba(99, 102, 241, 0.15);
-          color: #818cf8;
-          border: 1px solid rgba(99, 102, 241, 0.3);
+          background: rgba(59,130,246,0.1); color: #60a5fa;
+          border: 1px solid rgba(59,130,246,0.2);
         }
         .role-badge--editor {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background: rgba(34,197,94,0.1); color: #4ade80;
+          border: 1px solid rgba(34,197,94,0.2);
         }
         .role-badge--viewer {
-          background: rgba(107, 114, 128, 0.15);
-          color: #9ca3af;
-          border: 1px solid rgba(107, 114, 128, 0.3);
+          background: rgba(107,114,128,0.1); color: #9ca3af;
+          border: 1px solid rgba(107,114,128,0.2);
         }
       `}</style>
     </div>

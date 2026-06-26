@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
@@ -13,7 +13,6 @@ export default function LoginPage() {
   const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard';
   const error = searchParams.get('error');
 
-  // Redirect already-authenticated users to dashboard
   useEffect(() => {
     if (status === 'authenticated') {
       router.replace('/dashboard');
@@ -23,7 +22,6 @@ export default function LoginPage() {
   const handleSignIn = async (provider: 'github' | 'google') => {
     setLoadingProvider(provider);
     await signIn(provider, { callbackUrl });
-    // No need to reset state — page will navigate away
   };
 
   const errorMessage = error
@@ -48,34 +46,26 @@ export default function LoginPage() {
     <main className="login-root">
       {/* Ambient Background */}
       <div className="login-bg" aria-hidden="true">
-        <div className="login-bg__orb login-bg__orb--1" />
-        <div className="login-bg__orb login-bg__orb--2" />
-        <div className="login-bg__orb login-bg__orb--3" />
+        <div className="login-bg__glow login-bg__glow--1" />
+        <div className="login-bg__glow login-bg__glow--2" />
         <div className="login-bg__grid" />
       </div>
 
       {/* Login Card */}
       <div className="login-card">
-        {/* Logo + Brand */}
         <div className="login-brand">
           <div className="login-brand__icon" aria-hidden="true">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <rect width="36" height="36" rx="10" fill="url(#grad)" />
-              <path d="M10 18h16M18 10v16" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="18" cy="18" r="4" fill="white" fillOpacity="0.3" />
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="36" y2="36">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="8" height="8" x="2" y="2" rx="2" />
+              <rect width="8" height="8" x="14" y="2" rx="2" />
+              <rect width="8" height="8" x="2" y="14" rx="2" />
+              <rect width="8" height="8" x="14" y="14" rx="2" />
             </svg>
           </div>
           <h1 className="login-brand__name">CollabEditor</h1>
-          <p className="login-brand__tagline">Real-time collaboration, powered by AI</p>
+          <p className="login-brand__tagline">Sign in to start collaborating in real-time</p>
         </div>
 
-        {/* Error Banner */}
         {errorMessage && (
           <div className="login-error" role="alert">
             <span className="login-error__icon">⚠</span>
@@ -83,7 +73,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* OAuth Buttons */}
         <div className="login-providers">
           <button
             id="btn-github-signin"
@@ -110,7 +99,7 @@ export default function LoginPage() {
             aria-busy={loadingProvider === 'google'}
           >
             {loadingProvider === 'google' ? (
-              <span className="login-btn__spinner login-btn__spinner--dark" aria-hidden="true" />
+              <span className="login-btn__spinner" aria-hidden="true" />
             ) : (
               <svg className="login-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -129,235 +118,145 @@ export default function LoginPage() {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         .login-loading {
           min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #09090f;
+          display: flex; align-items: center; justify-content: center;
+          background: #050505;
         }
 
         .login-root {
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: 'Inter', system-ui, sans-serif;
           min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #09090f;
-          position: relative;
-          overflow: hidden;
-          padding: 1.5rem;
+          display: flex; align-items: center; justify-content: center;
+          background: #050505; position: relative;
+          overflow: hidden; padding: 1.5rem;
+          -webkit-font-smoothing: antialiased;
         }
 
-        /* Ambient background orbs */
-        .login-bg {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          z-index: 0;
+        .login-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+        .login-bg__glow {
+          position: absolute; border-radius: 50%;
+          filter: blur(120px); opacity: 0.15;
         }
-        .login-bg__orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          opacity: 0.35;
-          animation: orbFloat 8s ease-in-out infinite;
+        .login-bg__glow--1 {
+          width: 500px; height: 300px;
+          background: #3b82f6;
+          top: -100px; left: 50%; transform: translateX(-50%);
         }
-        .login-bg__orb--1 {
-          width: 500px; height: 500px;
-          background: radial-gradient(circle, #6366f1, transparent 70%);
-          top: -150px; left: -100px;
-          animation-delay: 0s;
-        }
-        .login-bg__orb--2 {
-          width: 400px; height: 400px;
-          background: radial-gradient(circle, #8b5cf6, transparent 70%);
-          bottom: -100px; right: -80px;
-          animation-delay: -3s;
-        }
-        .login-bg__orb--3 {
+        .login-bg__glow--2 {
           width: 300px; height: 300px;
-          background: radial-gradient(circle, #06b6d4, transparent 70%);
-          top: 40%; left: 60%;
-          animation-delay: -6s;
+          background: #8b5cf6;
+          bottom: -100px; right: -50px;
         }
         .login-bg__grid {
-          position: absolute;
-          inset: 0;
+          position: absolute; inset: 0;
           background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 48px 48px;
         }
-        @keyframes orbFloat {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-30px) scale(1.05); }
-        }
 
-        /* Card */
         .login-card {
-          position: relative;
-          z-index: 1;
-          width: 100%;
-          max-width: 420px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 24px;
-          padding: 2.5rem 2rem;
+          position: relative; z-index: 1;
+          width: 100%; max-width: 400px;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.05);
+          border-radius: 16px; padding: 2.5rem 2rem;
           backdrop-filter: blur(20px);
-          box-shadow:
-            0 0 0 1px rgba(255,255,255,0.05) inset,
-            0 32px 80px rgba(0,0,0,0.6);
+          box-shadow: 0 32px 80px rgba(0,0,0,0.6);
           animation: cardIn 0.5s cubic-bezier(0.16,1,0.3,1) both;
         }
         @keyframes cardIn {
-          from { opacity: 0; transform: translateY(24px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Brand */
         .login-brand {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 2rem;
-          text-align: center;
+          display: flex; flex-direction: column; align-items: center;
+          gap: 0.5rem; margin-bottom: 2rem; text-align: center;
         }
         .login-brand__icon {
-          margin-bottom: 0.25rem;
-          filter: drop-shadow(0 0 20px rgba(99,102,241,0.5));
+          padding: 6px; border-radius: 8px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: #fff; margin-bottom: 0.25rem;
         }
         .login-brand__name {
-          font-family: 'Syne', sans-serif;
-          font-size: 1.75rem;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.03em;
-          line-height: 1;
+          font-size: 1.25rem; font-weight: 500; color: #fff;
+          letter-spacing: -0.02em;
         }
         .login-brand__tagline {
-          font-size: 0.875rem;
-          color: rgba(255,255,255,0.45);
-          font-weight: 300;
+          font-size: 0.8125rem; color: #78716c; font-weight: 300;
         }
 
-        /* Error banner */
         .login-error {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: rgba(239,68,68,0.12);
-          border: 1px solid rgba(239,68,68,0.3);
-          border-radius: 10px;
-          padding: 0.75rem 1rem;
-          color: #fca5a5;
-          font-size: 0.875rem;
-          margin-bottom: 1.25rem;
+          display: flex; align-items: center; gap: 0.5rem;
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.15);
+          border-radius: 8px; padding: 0.75rem 1rem;
+          color: #fca5a5; font-size: 0.8125rem;
+          margin-bottom: 1.25rem; font-weight: 300;
         }
         .login-error__icon { font-size: 1rem; flex-shrink: 0; }
 
-        /* Provider buttons */
         .login-providers {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
+          display: flex; flex-direction: column; gap: 0.75rem;
         }
         .login-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          width: 100%;
-          padding: 0.875rem 1.5rem;
-          border-radius: 12px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.9375rem;
-          font-weight: 500;
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-          position: relative;
-          overflow: hidden;
+          display: flex; align-items: center; justify-content: center;
+          gap: 0.75rem; width: 100%; padding: 0.75rem 1.5rem;
+          border-radius: 9999px;
+          font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500;
+          cursor: pointer; border: none;
+          transition: all 0.2s; position: relative; overflow: hidden;
         }
-        .login-btn:disabled { opacity: 0.65; cursor: not-allowed; }
-        .login-btn::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: rgba(255,255,255,0.08);
-          opacity: 0;
-          transition: opacity 0.15s;
-        }
-        .login-btn:hover:not(:disabled)::after { opacity: 1; }
-        .login-btn:active:not(:disabled) { transform: scale(0.98); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-btn:active:not(:disabled) { transform: translateY(1px); }
 
         .login-btn--github {
-          background: #1c1c1c;
-          color: #fff;
-          border: 1px solid rgba(255,255,255,0.12);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+          background: rgba(255,255,255,0.05); color: #fff;
+          border: 1px solid rgba(255,255,255,0.1);
         }
         .login-btn--github:hover:not(:disabled) {
-          background: #2d2d2d;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+          background: rgba(255,255,255,0.08);
+          border-color: rgba(255,255,255,0.15);
         }
 
         .login-btn--google {
-          background: #fff;
-          color: #3c4043;
+          background: #fff; color: #3c4043;
           border: 1px solid rgba(0,0,0,0.08);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
         .login-btn--google:hover:not(:disabled) {
-          background: #f8f8f8;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.2);
-        }
-        .login-btn--google::after {
-          background: rgba(0,0,0,0.04);
+          background: #f5f5f5;
         }
 
-        .login-btn__icon { width: 20px; height: 20px; flex-shrink: 0; }
+        .login-btn__icon { width: 18px; height: 18px; flex-shrink: 0; }
 
-        /* Button spinners */
-        .login-btn__spinner,
-        .login-btn__spinner--dark {
-          width: 18px; height: 18px;
-          border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.2);
+        .login-btn__spinner {
+          width: 18px; height: 18px; border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.15);
           border-top-color: #fff;
-          animation: spin 0.7s linear infinite;
-          flex-shrink: 0;
-        }
-        .login-btn__spinner--dark {
-          border-color: rgba(0,0,0,0.1);
-          border-top-color: #3c4043;
+          animation: spin 0.7s linear infinite; flex-shrink: 0;
         }
         .spinner {
-          width: 32px; height: 32px;
-          border-radius: 50%;
-          border: 3px solid rgba(255,255,255,0.1);
-          border-top-color: #6366f1;
+          width: 24px; height: 24px; border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.1);
+          border-top-color: #3b82f6;
           animation: spin 0.7s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Footer */
         .login-footer {
-          text-align: center;
-          margin-top: 1.5rem;
-          font-size: 0.8125rem;
-          color: rgba(255,255,255,0.25);
+          text-align: center; margin-top: 1.5rem;
+          font-size: 0.75rem; color: #57534e;
         }
 
-        /* Mobile */
         @media (max-width: 480px) {
-          .login-card { padding: 2rem 1.5rem; border-radius: 20px; }
-          .login-brand__name { font-size: 1.5rem; }
+          .login-card { padding: 2rem 1.5rem; }
         }
       `}</style>
     </main>
