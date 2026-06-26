@@ -216,6 +216,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('y-awareness', (update: ArrayBuffer) => {
+    try {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((room) => {
+        if (room.startsWith('doc:')) {
+          socket.to(room).emit('y-awareness', update);
+        }
+      });
+    } catch (err) {
+      console.error(`Error in y-awareness socket event handler:`, err);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id, 'User:', socket.data.user?.email);
   });
