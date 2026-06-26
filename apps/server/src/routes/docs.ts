@@ -17,4 +17,5 @@ router.delete('/:id', requireRole('owner'), docs.deleteDocument);   // C.6 — o
 router.post('/:id/members', requireRole('owner'), docs.addMember);               // C.7
 router.delete('/:id/members/:userId', requireRole('owner'), docs.removeMember); // C.8
 
-export { router as docsRouter };
+const docsRouter: Router = router;
+export { docsRouter };

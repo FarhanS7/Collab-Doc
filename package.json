@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.19.0",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev:servers": "turbo run dev",
+    "dev": "docker-compose up -d postgres redis && pnpm --filter @collab/server exec prisma migrate dev && turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"
   },

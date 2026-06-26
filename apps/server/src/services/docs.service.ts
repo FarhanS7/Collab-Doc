@@ -135,7 +135,7 @@ export async function getDocument(documentId: string, userId: string) {
 // ─────────────────────────────────────────────
 export async function updateDocument(
   documentId: string,
-  data: { title?: string; isPublic?: boolean; publicAccessLevel?: string | null },
+  data: { title?: string; isPublic?: boolean; publicAccessLevel?: string | null; yDocState?: string },
 ) {
   const document = await prisma.document.findFirst({
     where: { id: documentId, deletedAt: null },
@@ -148,6 +148,7 @@ export async function updateDocument(
       ...(data.title !== undefined && { title: data.title }),
       ...(data.isPublic !== undefined && { isPublic: data.isPublic }),
       ...(data.publicAccessLevel !== undefined && { publicAccessLevel: data.publicAccessLevel }),
+      ...(data.yDocState !== undefined && { yDocState: Buffer.from(data.yDocState, 'base64') }),
     },
     select: { id: true, title: true, isPublic: true, publicAccessLevel: true, updatedAt: true },
   });
