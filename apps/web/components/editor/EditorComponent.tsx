@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -12,6 +12,12 @@ import * as Y from 'yjs';
 import EditorToolbar from './EditorToolbar';
 import PresenceBar from './PresenceBar';
 import { useCollabProvider } from '../../hooks/useCollabProvider';
+import { SlashCommandExtension, setSlashCallbacks } from './SlashCommandExtension';
+import type { SlashMenuState } from './SlashCommandExtension';
+import { AIGhostExtension } from './AIGhostExtension';
+import SlashMenu from './SlashMenu';
+import type { AICommandId } from './SlashMenu';
+import { useAISuggestion } from '../../hooks/useAISuggestion';
 
 const lowlight = createLowlight(common);
 
@@ -33,6 +39,11 @@ export default function EditorComponent({
   userName 
 }: EditorComponentProps) {
   const canEdit = role === 'owner' || role === 'editor';
+
+  // ── Slash menu state ──────────────────────────────────────────────
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState & { selectedIndex: number }>({ 
+    isOpen: false, coords: { top: 0, left: 0 }, query: '', range: { from: 0, to: 0 }, selectedIndex: 0,
+  });
   
   // Hydrate Y.Doc with initial server-rendered state during state initialization
   const [ydoc] = useState(() => {
@@ -65,7 +76,7 @@ export default function EditorComponent({
         undoRedo: false,
       }),
       Placeholder.configure({
-        placeholder: 'Start writing...',
+        placeholder: "Start writing, or type '/' for AI commands...",
       }),
       CodeBlockLowlight.configure({
         lowlight,
@@ -80,9 +91,79 @@ export default function EditorComponent({
           color: '#F59E0B', // Deterministic color is populated dynamically by awareness hook
         },
       }),
+      // F.4 — Slash command trigger detection
+      SlashCommandExtension,
+      // F.5 — Ghost decoration renderer (local-only, never synced via Y.js)
+      AIGhostExtension,
     ],
     editable: canEdit,
   });
+
+  // ── AI Suggestion hook (F.7 — orchestrates F.3, F.5, F.6) ───────
+  const { status: aiStatus, triggerSuggestion } = useAISuggestion(editor);
+
+  // ── Wire slash callbacks to the ProseMirror extension ────────────
+  const hasSelection = editor ? !editor.state.selection.empty : false;
+
+  const handleSlashOpen = useCallback((state: SlashMenuState) => {
+    setSlashMenu({ ...state, selectedIndex: 0 });
+  }, []);
+
+  const handleSlashUpdate = useCallback((state: SlashMenuState) => {
+    setSlashMenu((prev) => ({ ...state, selectedIndex: prev.selectedIndex }));
+  }, []);
+
+  const handleSlashClose = useCallback(() => {
+    setSlashMenu((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleSlashArrowUp = useCallback(() => {
+    setSlashMenu((prev) => ({ 
+      ...prev, 
+      selectedIndex: Math.max(0, prev.selectedIndex - 1) 
+    }));
+  }, []);
+
+  const handleSlashArrowDown = useCallback(() => {
+    setSlashMenu((prev) => ({ 
+      ...prev, 
+      selectedIndex: prev.selectedIndex + 1 
+    }));
+  }, []);
+
+  const handleSlashSelect = useCallback((commandId: AICommandId) => {
+    if (!editor) return;
+    // Delete the slash trigger text before generating
+    const { range } = slashMenu;
+    editor.chain().focus().deleteRange(range).run();
+    handleSlashClose();
+
+    const selText = editor.state.selection.empty
+      ? undefined
+      : editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to);
+    triggerSuggestion(commandId, selText);
+  }, [editor, slashMenu, handleSlashClose, triggerSuggestion]);
+
+  const handleSlashEnter = useCallback(() => {
+    const commands: AICommandId[] = canEdit
+      ? (hasSelection ? ['continue', 'rewrite', 'summarize'] : ['continue', 'summarize'])
+      : [];
+    const cmd = commands[slashMenu.selectedIndex];
+    if (cmd) handleSlashSelect(cmd);
+  }, [canEdit, hasSelection, slashMenu.selectedIndex, handleSlashSelect]);
+
+  // Register callbacks with the ProseMirror extension (runs after editor mount)
+  React.useEffect(() => {
+    if (!editor) return;
+    setSlashCallbacks({
+      onOpen: handleSlashOpen,
+      onUpdate: handleSlashUpdate,
+      onClose: handleSlashClose,
+      onArrowUp: handleSlashArrowUp,
+      onArrowDown: handleSlashArrowDown,
+      onEnter: handleSlashEnter,
+    });
+  }, [editor, handleSlashOpen, handleSlashUpdate, handleSlashClose, handleSlashArrowUp, handleSlashArrowDown, handleSlashEnter]);
 
   return (
     <div className="editor-layout">
@@ -110,7 +191,34 @@ export default function EditorComponent({
       <main className="editor-workspace-main">
         <div className="editor-container">
           {canEdit && <EditorToolbar editor={editor} />}
-          
+
+          {/* F.4 — Slash command floating menu */}
+          {canEdit && (
+            <SlashMenu
+              isOpen={slashMenu.isOpen}
+              coords={slashMenu.coords}
+              query={slashMenu.query}
+              selectedIndex={slashMenu.selectedIndex}
+              hasSelection={hasSelection}
+              onSelect={handleSlashSelect}
+              onClose={handleSlashClose}
+              onIndexChange={(i) => setSlashMenu((prev) => ({ ...prev, selectedIndex: i }))}
+            />
+          )}
+
+          {/* AI status indicator */}
+          {aiStatus === 'streaming' && (
+            <div className="ai-streaming-indicator">
+              <span className="ai-streaming-dot" />
+              AI is writing…
+            </div>
+          )}
+          {aiStatus === 'suggested' && (
+            <div className="ai-suggested-indicator">
+              <span>Tab</span> to accept · <span>Esc</span> to reject
+            </div>
+          )}
+
           <div className="editor-content-wrapper">
             <EditorContent editor={editor} className="tiptap-editor" />
           </div>
@@ -141,6 +249,46 @@ export default function EditorComponent({
           background: #050505; color: #fff;
           font-family: 'Inter', system-ui, sans-serif;
         }
+
+        /* ── AI Ghost Text (F.5) ── */
+        .ai-ghost-text {
+          color: #57534e;
+          font-style: italic;
+          pointer-events: none;
+          user-select: none;
+          opacity: 0.85;
+        }
+
+        /* ── AI Status Badges ── */
+        .ai-streaming-indicator {
+          position: absolute; bottom: 4.5rem; left: 50%; transform: translateX(-50%);
+          display: flex; align-items: center; gap: 0.5rem;
+          padding: 0.375rem 0.875rem; border-radius: 9999px;
+          background: rgba(10,10,10,0.9); border: 1px solid rgba(129,140,248,0.3);
+          font-size: 0.75rem; color: #818cf8; font-weight: 500;
+          backdrop-filter: blur(8px); z-index: 30;
+          animation: fade-in 0.2s ease;
+        }
+        .ai-streaming-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #818cf8; animation: pulse 1.2s infinite;
+        }
+        .ai-suggested-indicator {
+          position: absolute; bottom: 4.5rem; left: 50%; transform: translateX(-50%);
+          display: flex; align-items: center; gap: 0.375rem;
+          padding: 0.375rem 0.875rem; border-radius: 9999px;
+          background: rgba(10,10,10,0.9); border: 1px solid rgba(16,185,129,0.3);
+          font-size: 0.75rem; color: #a8a29e;
+          backdrop-filter: blur(8px); z-index: 30;
+          animation: fade-in 0.2s ease;
+        }
+        .ai-suggested-indicator span {
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 4px; padding: 0.1em 0.35em;
+          font-family: monospace; font-size: 0.6875rem; color: #e7e5e4;
+        }
+        @keyframes fade-in { from { opacity: 0; transform: translateX(-50%) translateY(4px); } }
 
         .editor-header {
           display: flex; align-items: center; justify-content: space-between;
