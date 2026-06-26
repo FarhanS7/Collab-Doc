@@ -65,6 +65,7 @@ export default async function DocumentPage({ params }: { params: { id: string } 
       role={doc.currentUserRole} 
       userId={(session.user as any).id}
       userName={session.user.name || 'Anonymous'}
+      initialMembers={doc.members}
     />
   );
 }

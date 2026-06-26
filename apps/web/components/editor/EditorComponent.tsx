@@ -18,6 +18,7 @@ import { AIGhostExtension } from './AIGhostExtension';
 import SlashMenu from './SlashMenu';
 import type { AICommandId } from './SlashMenu';
 import { useAISuggestion } from '../../hooks/useAISuggestion';
+import MemberManagementModal, { DocumentMember } from './MemberManagementModal';
 
 const lowlight = createLowlight(common);
 
@@ -28,6 +29,7 @@ interface EditorComponentProps {
   role: 'owner' | 'editor' | 'viewer';
   userId: string;
   userName: string;
+  initialMembers?: DocumentMember[];
 }
 
 export default function EditorComponent({ 
@@ -36,9 +38,12 @@ export default function EditorComponent({
   initialYDocBase64, 
   role, 
   userId, 
-  userName 
+  userName,
+  initialMembers = []
 }: EditorComponentProps) {
   const canEdit = role === 'owner' || role === 'editor';
+  const [members, setMembers] = useState<DocumentMember[]>(initialMembers);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
 
   // ── Slash menu state ──────────────────────────────────────────────
   const [slashMenu, setSlashMenu] = useState<SlashMenuState & { selectedIndex: number }>({ 
@@ -165,6 +170,14 @@ export default function EditorComponent({
     });
   }, [editor, handleSlashOpen, handleSlashUpdate, handleSlashClose, handleSlashArrowUp, handleSlashArrowDown, handleSlashEnter]);
 
+  // Synchronize editor editability dynamically on role/permission updates
+  React.useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(canEdit);
+    }
+  }, [editor, canEdit]);
+
+
   return (
     <div className="editor-layout">
       {/* Top Navbar */}
@@ -182,8 +195,24 @@ export default function EditorComponent({
             </span>
           </div>
         </div>
-        <div className="editor-header__right">
+        <div className="editor-header__right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <PresenceBar awareness={awareness} />
+          {role === 'owner' && (
+            <button 
+              onClick={() => setIsMemberModalOpen(true)}
+              className="editor-share-btn"
+              title="Manage members and permissions"
+              aria-label="Manage members"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px' }}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              Share
+            </button>
+          )}
         </div>
       </header>
 
@@ -243,11 +272,40 @@ export default function EditorComponent({
         </div>
       </main>
 
+      {/* G.3 — Document Member Management Modal */}
+      {role === 'owner' && (
+        <MemberManagementModal
+          isOpen={isMemberModalOpen}
+          onClose={() => setIsMemberModalOpen(false)}
+          documentId={documentId}
+          currentUserId={userId}
+          members={members}
+          onMembersChange={setMembers}
+        />
+      )}
+
       <style>{`
         .editor-layout {
           display: flex; flex-direction: column; height: 100vh;
           background: #050505; color: #fff;
           font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .editor-share-btn {
+          display: flex; align-items: center; justify-content: center;
+          height: 32px; padding: 0 0.875rem; border-radius: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #e7e5e4; font-size: 0.8125rem; font-weight: 500;
+          cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+        }
+        .editor-share-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.15);
+          color: #fff;
+        }
+        .editor-share-btn:active {
+          transform: scale(0.98);
         }
 
         /* ── AI Ghost Text (F.5) ── */
