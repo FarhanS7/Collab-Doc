@@ -16,6 +16,7 @@
     "db:generate": "prisma generate --schema=./prisma/schema.prisma"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "@collab/types": "workspace:*",
     "@prisma/client": "^5.14.0",
     "@socket.io/redis-adapter": "^8.3.0",

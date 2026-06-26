@@ -12,6 +12,7 @@ import { prisma } from './lib/prisma.js';
 import cookieParser from 'cookie-parser';
 import { requireAuth } from './middleware/requireAuth.js';
 import { docsRouter } from './routes/docs.js';
+import { aiRouter } from './routes/ai.js';
 import { AppError } from './lib/errors.js';
 import type { ClientToServerEvents, ServerToClientEvents, JoinRoomPayload } from '@collab/types';
 import * as Y from 'yjs';
@@ -103,6 +104,7 @@ app.get('/health', (_req, res) => {
 // --- Protected API Routes ---
 app.use('/api', requireAuth);
 app.use('/api/docs', docsRouter); // C.2-C.8 CRUD routes
+app.use('/api/ai', aiRouter); // Phase F AI Assistant routes
 
 // NextAuth uses different cookie names per environment
 const COOKIE_NAME =
