@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
+import Collaboration from '@tiptap/extension-collaboration';
 import debounce from 'lodash.debounce';
 import * as Y from 'yjs';
 import EditorToolbar from './EditorToolbar';
+import { useCollabProvider } from '../../hooks/useCollabProvider';
 
 const lowlight = createLowlight(common);
 
@@ -19,116 +21,45 @@ interface EditorComponentProps {
 }
 
 export default function EditorComponent({ documentId, initialYDocBase64, role }: EditorComponentProps) {
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
-  const [initialHtml, setInitialHtml] = useState<string>('');
   const canEdit = role === 'owner' || role === 'editor';
   
-  // Ref to hold the latest content for beforeunload
-  const contentRef = useRef<string>('');
-
-  useEffect(() => {
+  // Hydrate Y.Doc with initial server-rendered state during state initialization
+  const [ydoc] = useState(() => {
+    const doc = new Y.Doc();
     try {
-      // Decode the Y.js state from the server and extract our temporary HTML field
-      const ydoc = new Y.Doc();
-      const binary = Uint8Array.from(atob(initialYDocBase64), c => c.charCodeAt(0));
-      if (binary.length > 0) {
-        Y.applyUpdate(ydoc, binary);
+      if (initialYDocBase64) {
+        const binary = Uint8Array.from(atob(initialYDocBase64), (c) => c.charCodeAt(0));
+        if (binary.length > 0) {
+          Y.applyUpdate(doc, binary);
+        }
       }
-      const html = ydoc.getText('html').toString();
-      setInitialHtml(html);
-      contentRef.current = html;
     } catch (e) {
-      console.error('Failed to decode initial document state', e);
+      console.error('[Editor] Failed to hydrate initial Y.Doc state:', e);
     }
-  }, [initialYDocBase64]);
+    return doc;
+  });
 
-  // Synchronous save function (used by beforeunload)
-  const saveContentSync = useCallback((htmlContent: string) => {
-    if (!canEdit) return;
-    
-    // TEMPORARY: Encode HTML into a Y.js doc for D.4 naive saving.
-    // This will be replaced by native Y.js syncing in Module E.
-    const ydoc = new Y.Doc();
-    ydoc.getText('html').insert(0, htmlContent);
-    const binary = Y.encodeStateAsUpdate(ydoc);
-    const base64 = btoa(Array.from(binary).map(b => String.fromCharCode(b)).join(''));
-
-    // use fetch with keepalive: true for beforeunload
-    fetch(`/api/docs/${documentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ yDocState: base64 }),
-      keepalive: true,
-    }).catch(e => console.error('Sync save failed', e));
-  }, [documentId, canEdit]);
-
-  // Debounced save function for normal typing
-  const debouncedSave = useCallback(
-    debounce(async (htmlContent: string) => {
-      if (!canEdit) return;
-      setSaveStatus('saving');
-      
-      const ydoc = new Y.Doc();
-      ydoc.getText('html').insert(0, htmlContent);
-      const binary = Y.encodeStateAsUpdate(ydoc);
-      const base64 = btoa(Array.from(binary).map(b => String.fromCharCode(b)).join(''));
-
-      try {
-        const res = await fetch(`/api/docs/${documentId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ yDocState: base64 }),
-        });
-        if (!res.ok) throw new Error('Failed to save');
-        setSaveStatus('saved');
-      } catch (err) {
-        setSaveStatus('error');
-      }
-    }, 2000),
-    [documentId, canEdit]
-  );
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (saveStatus === 'saving') {
-        saveContentSync(contentRef.current);
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      debouncedSave.cancel();
-      // Ensure we save if unmounting while changes are pending
-      if (saveStatus === 'saving') {
-        saveContentSync(contentRef.current);
-      }
-    };
-  }, [saveStatus, saveContentSync, debouncedSave]);
+  // Activate WebSocket collaboration provider
+  const { status: collabStatus } = useCollabProvider({ documentId, ydoc });
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Collaboration handles undo/redo queue internally, disable default history
+        undoRedo: false,
+      }),
       Placeholder.configure({
         placeholder: 'Start writing...',
       }),
       CodeBlockLowlight.configure({
         lowlight,
       }),
+      Collaboration.configure({
+        document: ydoc,
+      }),
     ],
-    content: initialHtml,
     editable: canEdit,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      contentRef.current = html;
-      setSaveStatus('saving');
-      debouncedSave(html);
-    },
-  }, [initialHtml, canEdit]); // Re-initialize when initialHtml is parsed
-
-  // We only render the editor once initialHtml is extracted
-  if (initialHtml === '' && initialYDocBase64 !== '') {
-     // Still parsing
-  }
+  });
 
   return (
     <div className="editor-container">
@@ -139,9 +70,21 @@ export default function EditorComponent({ documentId, initialYDocBase64, role }:
       </div>
 
       <div className="editor-status">
-        {saveStatus === 'saving' && <span className="status-badge status-saving"><span className="status-dot"></span> Saving...</span>}
-        {saveStatus === 'saved' && <span className="status-badge status-saved">✓ Saved</span>}
-        {saveStatus === 'error' && <span className="status-badge status-error">⚠ Save Failed</span>}
+        {collabStatus === 'connecting' && (
+          <span className="status-badge status-connecting">
+            <span className="status-dot dot-connecting"></span> Syncing...
+          </span>
+        )}
+        {collabStatus === 'connected' && (
+          <span className="status-badge status-connected">
+            <span className="status-dot dot-connected"></span> Sync Connected
+          </span>
+        )}
+        {collabStatus === 'disconnected' && (
+          <span className="status-badge status-disconnected">
+            <span className="status-dot dot-disconnected"></span> Offline
+          </span>
+        )}
       </div>
 
       <style>{`
@@ -164,20 +107,32 @@ export default function EditorComponent({ documentId, initialYDocBase64, role }:
         }
 
         .status-badge {
-          display: flex; align-items: center; gap: 0.375rem;
+          display: flex; align-items: center; gap: 0.5rem;
           padding: 0.375rem 0.75rem; border-radius: 9999px;
           font-size: 0.75rem; font-weight: 500;
           background: rgba(10,10,10,0.8); backdrop-filter: blur(8px);
           border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .status-saving { color: #a8a29e; }
-        .status-saved { color: #a8a29e; }
-        .status-error { color: #fca5a5; border-color: rgba(239,68,68,0.2); }
+        .status-connecting { color: #a8a29e; }
+        .status-connected { color: #10b981; }
+        .status-disconnected { color: #fca5a5; border-color: rgba(239,68,68,0.2); }
 
         .status-dot {
           width: 6px; height: 6px; border-radius: 50%;
-          background: #a8a29e; animation: pulse 1.5s infinite;
+        }
+
+        .dot-connecting {
+          background: #f59e0b;
+          animation: pulse 1.5s infinite;
+        }
+
+        .dot-connected {
+          background: #10b981;
+        }
+
+        .dot-disconnected {
+          background: #ef4444;
         }
 
         @keyframes pulse {
