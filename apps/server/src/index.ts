@@ -2,7 +2,7 @@
 import { env } from './lib/env.js';
 
 import express from 'express';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, Express } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -26,7 +26,7 @@ interface SocketData {
   documentId?: string;
 }
 
-const app = express();
+const app: Express = express();
 const server = http.createServer(app);
 const io = new Server<
   ClientToServerEvents,
@@ -363,8 +363,12 @@ process.on('SIGINT', shutdown);
 
 // --- Start Server ---
 const PORT = env.PORT;
-server.listen(PORT, () => {
-  console.log(`[server] Express + Socket.io running on port ${PORT}`);
-  console.log(`[server] Environment: ${env.NODE_ENV}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`[server] Express + Socket.io running on port ${PORT}`);
+    console.log(`[server] Environment: ${env.NODE_ENV}`);
+  });
+}
+
+export { app, server, io };
 
