@@ -6,7 +6,7 @@ import type { Request, Response, NextFunction, Express } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { pubClient, subClient } from './lib/redis.js';
+import { pubClient, subClient, connectRedis } from './lib/redis.js';
 import { jwtVerify } from 'jose';
 import { prisma } from './lib/prisma.js';
 import cookieParser from 'cookie-parser';
@@ -42,55 +42,66 @@ const io = new Server<
   },
 });
 
-// Configure Socket.io Redis adapter for horizontal scaling
-io.adapter(createAdapter(pubClient, subClient));
+// Configure Socket.io Redis adapter for horizontal scaling when Redis is available
+let redisAvailable = false;
 
-// Subscribe to document updates from Redis Pub/Sub channels (cross-instance sync)
-subClient.psubscribe('doc:*:updates').then(() => {
-  console.log('[Redis] Subscribed to doc:*:updates pattern');
-}).catch((err) => {
-  console.error('[Redis] Failed to subscribe to doc:*:updates pattern:', err);
-});
+async function initRedisIntegration() {
+  redisAvailable = await connectRedis();
+  if (!redisAvailable) {
+    console.warn('⚠️ Redis unavailable; continuing without adapter-based cross-instance sync');
+    return;
+  }
 
-subClient.on('pmessage', async (pattern, channel, message) => {
-  try {
-    const channelParts = channel.split(':');
-    const documentId = channelParts[1];
-    const roomName = `doc:${documentId}`;
+  io.adapter(createAdapter(pubClient, subClient));
 
-    const { sender, update: updateBase64 } = JSON.parse(message);
-    const updateBuffer = Buffer.from(updateBase64, 'base64');
-    
-    // 1. If we are NOT the server node directly connected to the sender client,
-    // apply the update to our local cache to keep the document state converged.
-    const localSocket = io.sockets.sockets.get(sender);
-    if (!localSocket) {
-      const ydoc = await getOrCreateDoc(documentId);
-      Y.applyUpdate(ydoc, new Uint8Array(updateBuffer));
-    }
+  subClient.psubscribe('doc:*:updates').then(() => {
+    console.log('[Redis] Subscribed to doc:*:updates pattern');
+  }).catch((err) => {
+    console.error('[Redis] Failed to subscribe to doc:*:updates pattern:', err);
+  });
 
-    // Get the ArrayBuffer representation safely from Node.js Buffer
-    const arrayBuffer = updateBuffer.buffer.slice(
-      updateBuffer.byteOffset,
-      updateBuffer.byteOffset + updateBuffer.byteLength
-    ) as ArrayBuffer;
+    subClient.on('pmessage', async (pattern, channel, message) => {
+    try {
+      const channelParts = channel.split(':');
+      const documentId = channelParts[1];
+      const roomName = `doc:${documentId}`;
 
-    // Emit ONLY locally to clients in this room on this server instance (excluding original sender)
-    const localRoomSockets = io.sockets.adapter.rooms.get(roomName);
-    if (localRoomSockets) {
-      for (const socketId of localRoomSockets) {
-        if (socketId !== sender) {
-          const clientSocket = io.sockets.sockets.get(socketId);
-          if (clientSocket) {
-            clientSocket.emit('y-update', arrayBuffer);
+      const { sender, update: updateBase64 } = JSON.parse(message);
+      const updateBuffer = Buffer.from(updateBase64, 'base64');
+      
+      // 1. If we are NOT the server node directly connected to the sender client,
+      // apply the update to our local cache to keep the document state converged.
+      const localSocket = io.sockets.sockets.get(sender);
+      if (!localSocket) {
+        const ydoc = await getOrCreateDoc(documentId);
+        Y.applyUpdate(ydoc, new Uint8Array(updateBuffer));
+      }
+
+      // Get the ArrayBuffer representation safely from Node.js Buffer
+      const arrayBuffer = updateBuffer.buffer.slice(
+        updateBuffer.byteOffset,
+        updateBuffer.byteOffset + updateBuffer.byteLength
+      ) as ArrayBuffer;
+
+      // Emit ONLY locally to clients in this room on this server instance (excluding original sender)
+      const localRoomSockets = io.sockets.adapter.rooms.get(roomName);
+      if (localRoomSockets) {
+        for (const socketId of localRoomSockets) {
+          if (socketId !== sender) {
+            const clientSocket = io.sockets.sockets.get(socketId);
+            if (clientSocket) {
+              clientSocket.emit('y-update', arrayBuffer);
+            }
           }
         }
       }
+    } catch (err) {
+      console.error('Error handling Redis update message:', err);
     }
-  } catch (err) {
-    console.error('Error handling Redis update message:', err);
-  }
-});
+  });
+}
+
+void initRedisIntegration();
 
 // --- Global Middleware ---
 app.use(express.json());

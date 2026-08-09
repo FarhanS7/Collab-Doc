@@ -1,22 +1,34 @@
 import { Redis } from 'ioredis';
 import { env } from './env.js';
 
+function createRedisClient(name: string) {
+  const client = new Redis(env.REDIS_URL, {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    connectTimeout: 2000,
+    retryStrategy: () => null,
+  });
+
+  client.on('error', (err) => {
+    console.warn(`⚠️ [Redis ${name} Client Error]:`, err.message);
+  });
+
+  client.on('connect', () => {
+    console.log(`🔌 Redis ${name} Client Connected`);
+  });
+
+  return client;
+}
+
 // Socket.io Redis adapter requires two distinct client connections
-export const pubClient = new Redis(env.REDIS_URL);
-export const subClient = pubClient.duplicate();
+export const pubClient = createRedisClient('Pub');
+export const subClient = createRedisClient('Sub');
 
-pubClient.on('error', (err) => {
-  console.error('❌ [Redis Pub Client Error]:', err);
-});
-
-subClient.on('error', (err) => {
-  console.error('❌ [Redis Sub Client Error]:', err);
-});
-
-pubClient.on('connect', () => {
-  console.log('🔌 Redis Pub Client Connected');
-});
-
-subClient.on('connect', () => {
-  console.log('🔌 Redis Sub Client Connected');
-});
+export async function connectRedis() {
+  try {
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    return true;
+  } catch {
+    return false;
+  }
+}
