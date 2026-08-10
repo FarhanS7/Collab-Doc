@@ -10,18 +10,6 @@ interface AIGhostState {
   text: string;
 }
 
-// Module-level setter so the hook can push updates without recreating the plugin
-let _dispatchUpdate: ((text: string, triggerPos: number) => void) | null = null;
-let _dispatchClear: (() => void) | null = null;
-
-export function setAIGhostUpdater(
-  onUpdate: (text: string, triggerPos: number) => void,
-  onClear: () => void,
-) {
-  _dispatchUpdate = onUpdate;
-  _dispatchClear = onClear;
-}
-
 // Transaction meta key for ghost decoration state updates
 export const AI_GHOST_META = 'aiGhostMeta';
 
@@ -51,7 +39,7 @@ export const AIGhostExtension = Extension.create({
         key: AI_GHOST_PLUGIN_KEY,
 
         state: {
-          init(_config, editorState) {
+          init() {
             return {
               decorationSet: DecorationSet.empty,
               triggerPos: null,

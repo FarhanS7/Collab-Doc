@@ -19,12 +19,13 @@ export default function PresenceBar({ awareness }: PresenceBarProps) {
       const states = awareness.getStates();
       const activeUsers: ActiveUser[] = [];
 
-      states.forEach((state: any, clientId: number) => {
-        if (state.user) {
+      states.forEach((state: Record<string, unknown>, clientId: number) => {
+        const user = state['user'] as { name?: string; color?: string } | undefined;
+        if (user) {
           activeUsers.push({
             clientId,
-            name: state.user.name,
-            color: state.user.color,
+            name: user.name || 'Anonymous',
+            color: user.color || '#F59E0B',
           });
         }
       });

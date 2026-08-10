@@ -122,12 +122,16 @@ export function requestAISuggestion(
       }
 
       onComplete();
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        console.log('🤖 AI completion stream fetch aborted successfully.');
-        return;
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          console.log('🤖 AI completion stream fetch aborted successfully.');
+          return;
+        }
+        onError(err.message || 'AI streaming connection failed.');
+      } else {
+        onError('AI streaming connection failed.');
       }
-      onError(err.message || 'AI streaming connection failed.');
     }
   };
 

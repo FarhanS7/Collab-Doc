@@ -90,7 +90,7 @@ export default function EditorComponent({
         document: ydoc,
       }),
       CollaborationCursor.configure({
-        provider: { awareness } as any,
+        provider: { awareness } as unknown as { awareness: import('y-protocols/awareness').Awareness },
         user: {
           name: userName,
           color: '#F59E0B', // Deterministic color is populated dynamically by awareness hook

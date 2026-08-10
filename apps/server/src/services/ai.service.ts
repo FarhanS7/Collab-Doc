@@ -101,7 +101,7 @@ async function* streamOpenRouter({
       }
     }
   } else if (typeof body[Symbol.asyncIterator] === 'function') {
-    for await (const chunk of body) {
+    for await (const chunk of body as AsyncIterable<Uint8Array | Buffer | string>) {
       buffer += decoder.decode(chunk as Uint8Array, { stream: true });
       const parts = buffer.split('\n\n');
       buffer = parts.pop() ?? '';

@@ -38,8 +38,9 @@ export default async function DocumentPage({ params }: { params: { id: string } 
   let doc;
   try {
     doc = await getDocument(params.id, reqHeaders);
-  } catch (err: any) {
-    if (err.message === 'FORBIDDEN') {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (errorMessage === 'FORBIDDEN') {
       return (
         <div className="doc-error-page">
           <div className="doc-error-box">
@@ -63,7 +64,7 @@ export default async function DocumentPage({ params }: { params: { id: string } 
       title={doc.title}
       initialYDocBase64={doc.yDocState} 
       role={doc.currentUserRole} 
-      userId={(session.user as any).id}
+      userId={(session.user as { id: string }).id}
       userName={session.user.name || 'Anonymous'}
       initialMembers={doc.members}
     />

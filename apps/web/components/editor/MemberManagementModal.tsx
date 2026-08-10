@@ -64,8 +64,9 @@ export default function MemberManagementModal({
       
       // Auto clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Something went wrong';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -94,8 +95,9 @@ export default function MemberManagementModal({
       onMembersChange(members.filter((m) => m.id !== userId));
       setSuccess(`Removed access for ${userEmail}.`);
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to remove member');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to remove member';
+      setError(errorMessage);
     } finally {
       setRemovingUserId(null);
     }
@@ -135,7 +137,7 @@ export default function MemberManagementModal({
               />
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as any)}
+                onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
                 disabled={isSubmitting}
                 className="member-role-select"
               >

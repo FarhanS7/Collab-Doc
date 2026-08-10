@@ -51,8 +51,6 @@ export const SlashCommandExtension = Extension.create({
         props: {
           handleKeyDown(view, event) {
             const { state } = view;
-            const { selection } = state;
-            const { $from } = selection;
 
             // Check if the slash menu should handle this event
             const meta = SLASH_PLUGIN_KEY.getState(state);
@@ -98,7 +96,7 @@ export const SlashCommandExtension = Extension.create({
           return {
             update(view) {
               const { state } = view;
-              const { selection, doc } = state;
+              const { selection } = state;
               const { $from, empty } = selection;
 
               if (!empty) {
