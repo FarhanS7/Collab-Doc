@@ -18,6 +18,7 @@ import type { ClientToServerEvents, ServerToClientEvents, JoinRoomPayload } from
 import * as Y from 'yjs';
 import { getOrCreateDoc, applyUpdateAndQueueSave, unloadDocIfEmpty } from './lib/docManager.js';
 import { logger, pinoHttpMiddleware, createRequestLogger } from './lib/logger.js';
+import { metricsHandler, activeRoomsGauge } from './lib/metrics.js';
 import { nanoid } from 'nanoid';
 
 interface SocketData {
@@ -115,6 +116,7 @@ app.use(cookieParser()); // Must come BEFORE requireAuth
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+app.get('/metrics', metricsHandler);
 
 // --- Protected API Routes ---
 app.use('/api', requireAuth);
@@ -221,7 +223,11 @@ io.on('connection', (socket) => {
       }
 
       const roomName = `doc:${documentId}`;
+      const isFirstClient = !io.sockets.adapter.rooms.get(roomName)?.size;
       socket.join(roomName);
+      if (isFirstClient) {
+        activeRoomsGauge.inc();
+      }
       socket.data.documentId = documentId; // Save documentId to socket data for cleanup on disconnect
       reqLogger.info({ socketId: socket.id, roomName, msg: `User ${userId} successfully joined room ${roomName}` });
 
@@ -329,6 +335,9 @@ io.on('connection', (socket) => {
       const roomName = `doc:${documentId}`;
       const localRoom = io.sockets.adapter.rooms.get(roomName);
       const activeConnectionsCount = localRoom ? localRoom.size : 0;
+      if (activeConnectionsCount === 0) {
+        activeRoomsGauge.dec();
+      }
       
       // Perform final flush and clear from cache memory if no local connections remain
       await unloadDocIfEmpty(documentId, activeConnectionsCount);

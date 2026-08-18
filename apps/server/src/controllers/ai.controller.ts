@@ -3,6 +3,7 @@ import type { Request, Response, RequestHandler } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { ValidationError, AppError } from '../lib/errors.js';
 import * as aiService from '../services/ai.service.js';
+import { aiLatencyHistogram } from '../lib/metrics.js';
 
 // ─── Zod Schema ───────────────────────────────────────────────
 const aiCompleteSchema = z.object({
@@ -44,6 +45,9 @@ export const generateAISuggestion: RequestHandler = asyncHandler(async (req: Req
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders(); // Establish stream connection immediately
 
+  const startTime = Date.now();
+  let firstTokenEmitted = false;
+
   try {
     const stream = await aiService.generateAIStream({
       prompt,
@@ -58,6 +62,10 @@ export const generateAISuggestion: RequestHandler = asyncHandler(async (req: Req
         chunk.type === 'content_block_delta' &&
         chunk.delta.type === 'text_delta'
       ) {
+        if (!firstTokenEmitted) {
+          firstTokenEmitted = true;
+          aiLatencyHistogram.observe(Date.now() - startTime);
+        }
         const token = chunk.delta.text;
         res.write(`data: ${JSON.stringify({ token })}\n\n`);
       }
