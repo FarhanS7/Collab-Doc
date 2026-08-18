@@ -6,7 +6,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev:servers": "turbo run dev",
-    "dev": "docker-compose up -d postgres redis && pnpm --filter @collab/server exec prisma migrate dev && turbo run dev",
+    "dev": "docker-compose up -d postgres redis && pnpm --filter @collab/server run db:migrate && turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"
   },

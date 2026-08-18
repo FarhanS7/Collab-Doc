@@ -17,6 +17,8 @@ import { AppError } from './lib/errors.js';
 import type { ClientToServerEvents, ServerToClientEvents, JoinRoomPayload } from '@collab/types';
 import * as Y from 'yjs';
 import { getOrCreateDoc, applyUpdateAndQueueSave, unloadDocIfEmpty } from './lib/docManager.js';
+import { logger, pinoHttpMiddleware, createRequestLogger } from './lib/logger.js';
+import { nanoid } from 'nanoid';
 
 interface SocketData {
   user?: {
@@ -24,6 +26,7 @@ interface SocketData {
     email: string;
   };
   documentId?: string;
+  requestId?: string;
 }
 
 const app: Express = express();
@@ -104,6 +107,7 @@ async function initRedisIntegration() {
 void initRedisIntegration();
 
 // --- Global Middleware ---
+app.use(pinoHttpMiddleware);
 app.use(express.json());
 app.use(cookieParser()); // Must come BEFORE requireAuth
 
@@ -167,13 +171,28 @@ io.use(async (socket, next) => {
 
 // --- Socket.io Events ---
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id, 'User:', socket.data.user?.email);
+  const socketRequestId = nanoid(10);
+  socket.data.requestId = socketRequestId;
+
+  logger.info({
+    socketId: socket.id,
+    requestId: socketRequestId,
+    userId: socket.data.user?.id,
+    email: socket.data.user?.email,
+    msg: 'Socket client connected',
+  });
 
   socket.on('join-room', async ({ documentId }: JoinRoomPayload) => {
     try {
       const userId = socket.data.user?.id;
+      const reqLogger = createRequestLogger({
+        requestId: socket.data.requestId || nanoid(10),
+        userId,
+        docId: documentId,
+      });
+
       if (!userId) {
-        console.warn(`[Socket ${socket.id}] Attempted to join room without user ID`);
+        reqLogger.warn({ socketId: socket.id, msg: 'Attempted to join room without user ID' });
         return;
       }
 
@@ -184,7 +203,7 @@ io.on('connection', (socket) => {
       });
 
       if (!doc) {
-        console.warn(`[Socket ${socket.id}] Document ${documentId} not found or deleted`);
+        reqLogger.warn({ socketId: socket.id, msg: `Document ${documentId} not found or deleted` });
         return;
       }
 
@@ -197,14 +216,14 @@ io.on('connection', (socket) => {
       const isPublic = doc.isPublic;
 
       if (!isMember && !isPublic) {
-        console.warn(`[Socket ${socket.id}] User ${userId} unauthorized to access document ${documentId}`);
+        reqLogger.warn({ socketId: socket.id, msg: `User ${userId} unauthorized to access document ${documentId}` });
         return;
       }
 
       const roomName = `doc:${documentId}`;
       socket.join(roomName);
       socket.data.documentId = documentId; // Save documentId to socket data for cleanup on disconnect
-      console.log(`[Socket ${socket.id}] User ${userId} successfully joined room ${roomName}`);
+      reqLogger.info({ socketId: socket.id, roomName, msg: `User ${userId} successfully joined room ${roomName}` });
 
       // Get the in-memory cached doc or load it from database
       const serverDoc = await getOrCreateDoc(documentId);
@@ -297,7 +316,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log('Client disconnected:', socket.id, 'User:', socket.data.user?.email);
+    logger.info({
+      socketId: socket.id,
+      requestId: socket.data.requestId,
+      userId: socket.data.user?.id,
+      email: socket.data.user?.email,
+      msg: 'Socket client disconnected',
+    });
     
     const documentId = socket.data.documentId;
     if (documentId) {
@@ -322,7 +347,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   }
 
   // Unhandled errors
-  console.error('[Unhandled Error]', err);
+  logger.error({ err, msg: '[Unhandled Error]' });
   res.status(500).json({
     code: 'INTERNAL_SERVER_ERROR',
     message: 'An unexpected error occurred',
