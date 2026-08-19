@@ -77,3 +77,15 @@ export const removeMember: RequestHandler = asyncHandler(async (req: Request, re
   const result = await docsService.removeMember(req.params.id, req.params.userId);
   res.json({ data: result });
 });
+
+// ─── I.2 — List Document Versions ──────────────────────────────
+export const listVersions: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const versions = await docsService.listVersions(req.params.id);
+  res.json({ data: versions });
+});
+
+// ─── I.2 — Get Document Version Detail ─────────────────────────
+export const getVersion: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const version = await docsService.getVersion(req.params.id, req.params.versionId);
+  res.json({ data: version });
+});

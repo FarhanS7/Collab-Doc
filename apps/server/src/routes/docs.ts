@@ -17,5 +17,9 @@ router.delete('/:id', requireRole('owner'), docs.deleteDocument);   // C.6 — o
 router.post('/:id/members', requireRole('owner'), docs.addMember);               // C.7
 router.delete('/:id/members/:userId', requireRole('owner'), docs.removeMember); // C.8
 
+// Version history
+router.get('/:id/versions', requireRole('viewer'), docs.listVersions);            // I.2
+router.get('/:id/versions/:versionId', requireRole('viewer'), docs.getVersion);    // I.2
+
 const docsRouter: Router = router;
 export { docsRouter };

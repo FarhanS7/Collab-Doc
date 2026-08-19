@@ -241,3 +241,43 @@ export async function removeMember(documentId: string, targetUserId: string) {
 
   return { userId: targetUserId, removed: true };
 }
+
+// ─────────────────────────────────────────────
+// I.2 — Version History: List Versions
+// ─────────────────────────────────────────────
+export async function listVersions(documentId: string) {
+  const versions = await prisma.documentVersion.findMany({
+    where: { documentId },
+    select: {
+      id: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return versions;
+}
+
+// ─────────────────────────────────────────────
+// I.2 — Version History: Get Version Detail
+// ─────────────────────────────────────────────
+export async function getVersion(documentId: string, versionId: string) {
+  const version = await prisma.documentVersion.findFirst({
+    where: { id: versionId, documentId },
+    select: {
+      id: true,
+      documentId: true,
+      snapshotState: true,
+      createdAt: true,
+    },
+  });
+
+  if (!version) throw new NotFoundError('Version');
+
+  return {
+    id: version.id,
+    documentId: version.documentId,
+    snapshotState: version.snapshotState.toString('base64'),
+    createdAt: version.createdAt,
+  };
+}
