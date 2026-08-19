@@ -19,6 +19,7 @@ import * as Y from 'yjs';
 import { getOrCreateDoc, applyUpdateAndQueueSave, unloadDocIfEmpty } from './lib/docManager.js';
 import { logger, pinoHttpMiddleware, createRequestLogger } from './lib/logger.js';
 import { metricsHandler, activeRoomsGauge } from './lib/metrics.js';
+import { registerShutdownHandlers } from './lib/shutdown.js';
 import { nanoid } from 'nanoid';
 
 interface SocketData {
@@ -364,47 +365,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // --- Graceful Shutdown Handler ---
-const shutdown = async () => {
-  console.log('\nShutting down server gracefully...');
-  
-  // Close socket.io connections
-  io.close(() => {
-    console.log('• Socket.io server closed');
-  });
-
-  // Close HTTP server
-  server.close(() => {
-    console.log('• HTTP server closed');
-  });
-
-  // Disconnect Redis clients
-  try {
-    await pubClient.quit();
-    console.log('• Redis pubClient disconnected');
-  } catch (err) {
-    console.error('Error disconnecting Redis pubClient:', err);
-  }
-
-  try {
-    await subClient.quit();
-    console.log('• Redis subClient disconnected');
-  } catch (err) {
-    console.error('Error disconnecting Redis subClient:', err);
-  }
-
-  // Disconnect Prisma
-  try {
-    await prisma.$disconnect();
-    console.log('• Prisma disconnected');
-  } catch (err) {
-    console.error('Error disconnecting Prisma:', err);
-  }
-
-  process.exit(0);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+registerShutdownHandlers(server, io, prisma);
 
 // --- Start Server ---
 const PORT = env.PORT;

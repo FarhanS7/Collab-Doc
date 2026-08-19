@@ -131,3 +131,22 @@ export async function unloadDocIfEmpty(documentId: string, activeRoomConnections
     console.log(`🧹 [DocManager] Cache cleared for doc ${documentId}.`);
   }
 }
+
+/**
+ * Flushes all active in-memory cached documents to PostgreSQL before process exit.
+ */
+export async function flushAllDocsToDb(): Promise<void> {
+  const documentIds = Array.from(docCache.keys());
+  console.log(`💾 [DocManager] Flushing all ${documentIds.length} cached documents to database...`);
+
+  for (const documentId of documentIds) {
+    try {
+      await flushDocToDb(documentId);
+    } catch (err) {
+      console.error(`❌ [DocManager] Failed to flush document ${documentId} during shutdown:`, err);
+    }
+  }
+
+  docCache.clear();
+  console.log(`✨ [DocManager] All cached documents flushed and memory cleared.`);
+}
