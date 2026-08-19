@@ -19,6 +19,7 @@ import SlashMenu from './SlashMenu';
 import type { AICommandId } from './SlashMenu';
 import { useAISuggestion } from '../../hooks/useAISuggestion';
 import MemberManagementModal, { DocumentMember } from './MemberManagementModal';
+import VersionHistoryPanel from './VersionHistoryPanel';
 
 const lowlight = createLowlight(common);
 
@@ -44,6 +45,7 @@ export default function EditorComponent({
   const canEdit = role === 'owner' || role === 'editor';
   const [members, setMembers] = useState<DocumentMember[]>(initialMembers);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // ── Slash menu state ──────────────────────────────────────────────
   const [slashMenu, setSlashMenu] = useState<SlashMenuState & { selectedIndex: number }>({ 
@@ -219,7 +221,7 @@ export default function EditorComponent({
       {/* Editor Workspace */}
       <main className="editor-workspace-main">
         <div className="editor-container">
-          {canEdit && <EditorToolbar editor={editor} />}
+          {canEdit && <EditorToolbar editor={editor} onOpenHistory={() => setIsHistoryOpen(true)} />}
 
           {/* F.4 — Slash command floating menu */}
           {canEdit && (
@@ -283,6 +285,14 @@ export default function EditorComponent({
           onMembersChange={setMembers}
         />
       )}
+
+      {/* I.4 — Version History Drawer Panel */}
+      <VersionHistoryPanel
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        documentId={documentId}
+        isOwner={role === 'owner'}
+      />
 
       <style>{`
         .editor-layout {
