@@ -8,7 +8,7 @@ interface EditorToolbarProps {
   onOpenHistory?: () => void;
 }
 
-export default function EditorToolbar({ editor, onOpenHistory }: EditorToolbarProps) {
+function EditorToolbarBase({ editor, onOpenHistory }: EditorToolbarProps) {
   if (!editor) {
     return <div className="editor-toolbar editor-toolbar--skeleton" />;
   }
@@ -185,9 +185,11 @@ export default function EditorToolbar({ editor, onOpenHistory }: EditorToolbarPr
   );
 }
 
-// Separate component to prevent unnecessary re-renders via React.memo if needed
-// For now, it's a simple wrapper
-function ToolbarButton({ 
+const EditorToolbar = React.memo(EditorToolbarBase);
+export default EditorToolbar;
+
+// Memoized toolbar button component to optimize rendering
+const ToolbarButton = React.memo(function ToolbarButton({ 
   isActive, 
   onClick, 
   ariaLabel, 
@@ -209,4 +211,4 @@ function ToolbarButton({
       {children}
     </button>
   );
-}
+});

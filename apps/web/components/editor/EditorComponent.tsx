@@ -203,6 +203,10 @@ export default function EditorComponent({
   }, [editor, canEdit]);
 
 
+  const handleOpenHistory = useCallback(() => {
+    setIsHistoryOpen(true);
+  }, []);
+
   return (
     <div className="editor-layout">
       {/* Top Navbar */}
@@ -244,7 +248,7 @@ export default function EditorComponent({
       {/* Editor Workspace */}
       <main className="editor-workspace-main">
         <div className="editor-container">
-          {canEdit && <EditorToolbar editor={editor} onOpenHistory={() => setIsHistoryOpen(true)} />}
+          {canEdit && <EditorToolbar editor={editor} onOpenHistory={handleOpenHistory} />}
 
           {/* F.4 — Slash command floating menu */}
           {canEdit && (

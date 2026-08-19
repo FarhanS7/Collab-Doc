@@ -11,7 +11,7 @@ interface ActiveUser {
   color: string;
 }
 
-export default function PresenceBar({ awareness }: PresenceBarProps) {
+function PresenceBarBase({ awareness }: PresenceBarProps) {
   const [users, setUsers] = useState<ActiveUser[]>([]);
 
   useEffect(() => {
@@ -100,3 +100,6 @@ export default function PresenceBar({ awareness }: PresenceBarProps) {
     </div>
   );
 }
+
+const PresenceBar = React.memo(PresenceBarBase);
+export default PresenceBar;
