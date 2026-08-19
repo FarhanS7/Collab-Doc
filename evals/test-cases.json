@@ -1,0 +1,27 @@
+[
+  {
+    "id": "tc-001",
+    "mode": "continue",
+    "docContext": "The collaborative real-time editor uses Y.js binary CRDTs to synchronize state without a central server for conflict resolution.",
+    "prompt": "Explain how vector clocks assist in conflict resolution.",
+    "expectedMinTokens": 10,
+    "expectedMaxTokens": 200
+  },
+  {
+    "id": "tc-002",
+    "mode": "rewrite",
+    "docContext": "Our system utilizes PostgreSQL for persistent state and Redis pub/sub for horizontal WebSocket scaling across node instances.",
+    "selectionText": "utilizes PostgreSQL for persistent state and Redis pub/sub for horizontal WebSocket scaling",
+    "prompt": "Make it concise and developer-friendly",
+    "expectedMinTokens": 5,
+    "expectedMaxTokens": 150
+  },
+  {
+    "id": "tc-003",
+    "mode": "summarize",
+    "docContext": "Next.js 14 App Router powers our frontend dashboard with SSR and React Server Components. Tiptap engine provides headless rich text editing capabilities bound to Y.js CRDT state vectors. Redis pub/sub broadcasts Socket.io updates horizontally across server instances.",
+    "prompt": "",
+    "expectedMinTokens": 10,
+    "expectedMaxTokens": 100
+  }
+]

@@ -9,6 +9,7 @@
     "dev": "node --watch --import tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "eval": "tsx src/ai/evalRunner.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.integration.js",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js --coverage",
