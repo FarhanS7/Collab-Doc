@@ -178,6 +178,9 @@ importers:
         specifier: ^13.6.31
         version: 13.6.31
     devDependencies:
+      '@axe-core/react':
+        specifier: ^4.13.0
+        version: 4.13.0
       '@types/lodash.debounce':
         specifier: ^4.0.9
         version: 4.0.9
@@ -216,6 +219,9 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@axe-core/react@4.13.0':
+    resolution: {integrity: sha512-/4l+CSBS/VJ2VGtdohuQMqK3NfQoZgDHsXsRt4pAZzZTFhwXs9KQCBinVmPAgTF3wIYK0qvXYAfbmUQ1QT4GJQ==}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -1515,6 +1521,10 @@ packages:
 
   axe-core@4.12.1:
     resolution: {integrity: sha512-s7iGf5GaVMxEG0ENN9x+xTr7GFZCb1ZP/1uATUpCEK2X78nDB3RwbtFCo9pGAf9ru+VwoQ464DkaLEeRM08wJA==}
+    engines: {node: '>=4'}
+
+  axe-core@4.13.0:
+    resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
     engines: {node: '>=4'}
 
   axobject-query@4.1.0:
@@ -3249,6 +3259,9 @@ packages:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
     engines: {node: '>= 0.4'}
 
+  requestidlecallback@0.3.0:
+    resolution: {integrity: sha512-TWHFkT7S9p7IxLC5A1hYmAYQx2Eb9w1skrXmQ+dS1URyvR8tenMLl4lHbqEOUnpEYxNKpkVMXUgknVpBZWXXfQ==}
+
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
     engines: {node: '>=0.10.0'}
@@ -3868,6 +3881,11 @@ snapshots:
       standardwebhooks: 1.0.0
     optionalDependencies:
       zod: 3.25.76
+
+  '@axe-core/react@4.13.0':
+    dependencies:
+      axe-core: 4.13.0
+      requestidlecallback: 0.3.0
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -5248,6 +5266,8 @@ snapshots:
       possible-typed-array-names: 1.1.0
 
   axe-core@4.12.1: {}
+
+  axe-core@4.13.0: {}
 
   axobject-query@4.1.0: {}
 
@@ -7428,6 +7448,8 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       set-function-name: 2.0.2
+
+  requestidlecallback@0.3.0: {}
 
   require-directory@2.1.1: {}
 

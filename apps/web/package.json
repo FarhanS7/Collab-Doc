@@ -33,6 +33,7 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
+    "@axe-core/react": "^4.13.0",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^18",
