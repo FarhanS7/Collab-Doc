@@ -9,6 +9,7 @@
     "dev": "docker-compose up -d postgres redis && pnpm --filter @collab/server run db:migrate && turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "analyze": "ANALYZE=true pnpm --filter @collab/web build",
     "test:load": "k6 run load-tests/collab-editor.js"
   },
   "devDependencies": {

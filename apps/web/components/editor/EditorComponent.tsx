@@ -17,9 +17,12 @@ import type { SlashMenuState } from './SlashCommandExtension';
 import { AIGhostExtension } from './AIGhostExtension';
 import SlashMenu from './SlashMenu';
 import type { AICommandId } from './SlashMenu';
+import dynamic from 'next/dynamic';
 import { useAISuggestion } from '../../hooks/useAISuggestion';
-import MemberManagementModal, { DocumentMember } from './MemberManagementModal';
-import VersionHistoryPanel from './VersionHistoryPanel';
+import type { DocumentMember } from './MemberManagementModal';
+
+const MemberManagementModal = dynamic(() => import('./MemberManagementModal'), { ssr: false });
+const VersionHistoryPanel = dynamic(() => import('./VersionHistoryPanel'), { ssr: false });
 
 const lowlight = createLowlight(common);
 
