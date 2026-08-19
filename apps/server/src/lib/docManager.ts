@@ -154,3 +154,27 @@ export async function flushAllDocsToDb(): Promise<void> {
   docCache.clear();
   console.log(`✨ [DocManager] All cached documents flushed and memory cleared.`);
 }
+
+/**
+ * Replaces the in-memory cached Y.Doc state with a historical snapshot,
+ * flushes immediately to PostgreSQL, and returns the newly restored Y.Doc.
+ */
+export async function restoreDocState(documentId: string, snapshotBuffer: Buffer): Promise<Y.Doc> {
+  const newYDoc = new Y.Doc();
+  Y.applyUpdate(newYDoc, new Uint8Array(snapshotBuffer));
+
+  const existingCached = docCache.get(documentId);
+  if (existingCached?.saveTimer) {
+    clearTimeout(existingCached.saveTimer);
+  }
+
+  docCache.set(documentId, {
+    ydoc: newYDoc,
+    updateCount: 0,
+    saveTimer: null,
+    isSaving: false,
+  });
+
+  await flushDocToDb(documentId);
+  return newYDoc;
+}

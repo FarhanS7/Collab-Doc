@@ -1,5 +1,7 @@
 import * as Y from 'yjs';
+import type { Server } from 'socket.io';
 import { prisma } from '../lib/prisma.js';
+import { restoreDocState } from '../lib/docManager.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
 
 // ─────────────────────────────────────────────
@@ -280,4 +282,31 @@ export async function getVersion(documentId: string, versionId: string) {
     snapshotState: version.snapshotState.toString('base64'),
     createdAt: version.createdAt,
   };
+}
+
+// ─────────────────────────────────────────────
+// I.3 — Version History: Restore Version Snapshot
+// ─────────────────────────────────────────────
+export async function restoreVersion(documentId: string, versionId: string, io?: Server) {
+  const version = await prisma.documentVersion.findFirst({
+    where: { id: versionId, documentId },
+    select: { snapshotState: true },
+  });
+
+  if (!version) throw new NotFoundError('Version');
+
+  const restoredDoc = await restoreDocState(documentId, version.snapshotState);
+
+  // Broadcast full state update to all active room clients if Socket.io server instance is provided
+  if (io) {
+    const fullStateUpdate = Y.encodeStateAsUpdate(restoredDoc);
+    const arrayBuffer = fullStateUpdate.buffer.slice(
+      fullStateUpdate.byteOffset,
+      fullStateUpdate.byteOffset + fullStateUpdate.byteLength
+    ) as ArrayBuffer;
+
+    io.to(`doc:${documentId}`).emit('y-update', arrayBuffer);
+  }
+
+  return { restored: true, versionId };
 }

@@ -20,6 +20,7 @@ router.delete('/:id/members/:userId', requireRole('owner'), docs.removeMember); 
 // Version history
 router.get('/:id/versions', requireRole('viewer'), docs.listVersions);            // I.2
 router.get('/:id/versions/:versionId', requireRole('viewer'), docs.getVersion);    // I.2
+router.post('/:id/versions/:versionId/restore', requireRole('owner'), docs.restoreVersion); // I.3 — owner only
 
 const docsRouter: Router = router;
 export { docsRouter };

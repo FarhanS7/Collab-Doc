@@ -89,3 +89,10 @@ export const getVersion: RequestHandler = asyncHandler(async (req: Request, res:
   const version = await docsService.getVersion(req.params.id, req.params.versionId);
   res.json({ data: version });
 });
+
+// ─── I.3 — Restore Document Version Snapshot ───────────────────
+export const restoreVersion: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const io = req.app.get('io');
+  const result = await docsService.restoreVersion(req.params.id, req.params.versionId, io);
+  res.json({ data: result });
+});
