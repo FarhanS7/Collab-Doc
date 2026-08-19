@@ -15,28 +15,26 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [awareness] = useState(() => new Awareness(ydoc));
 
-  // Task II.1: Bind IndexedDB persistence provider for offline Y.js state caching
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const indexedDbProvider = new IndexeddbPersistence(documentId, ydoc);
-
-    indexedDbProvider.on('synced', () => {
-      console.log(`[IndexedDB] Document ${documentId} synced from local browser storage.`);
-    });
-
-    return () => {
-      indexedDbProvider.destroy();
-    };
-  }, [documentId, ydoc]);
-
-  useEffect(() => {
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
     
     // Establish connection to Socket.io server with NextAuth session cookies
     const socket: Socket = io(socketUrl, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
+    });
+
+    // Task II.1 & II.2: Bind IndexedDB persistence provider for offline Y.js state caching & sync
+    const indexedDbProvider = new IndexeddbPersistence(documentId, ydoc);
+
+    indexedDbProvider.on('synced', () => {
+      console.log(`[IndexedDB] Document ${documentId} synced from local browser storage.`);
+      if (socket.connected) {
+        const localStateVector = Y.encodeStateVector(ydoc);
+        socket.emit('y-sync-step-1', localStateVector.buffer);
+      }
     });
 
     // Helper to get a stable visual color based on the user ID hash
@@ -59,7 +57,7 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
         color: getDeterministicColor(userId),
       });
 
-      // Task E.8: Emit sync step 1 (Client State Vector) to kickstart reconnection sync
+      // Task II.2: Emit sync step 1 (Client State Vector) to kickstart reconnection sync
       const localStateVector = Y.encodeStateVector(ydoc);
       socket.emit('y-sync-step-1', localStateVector.buffer);
     });
@@ -113,6 +111,7 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
     });
 
     return () => {
+      indexedDbProvider.destroy();
       ydoc.off('update', handleLocalUpdate);
       awareness.off('update', handleAwarenessUpdate);
       socket.disconnect();
