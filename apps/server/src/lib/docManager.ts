@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { prisma } from './prisma.js';
+import { maybeTakeSnapshot } from './versionService.js';
 
 interface CachedDoc {
   ydoc: Y.Doc;
@@ -55,6 +56,9 @@ export async function applyUpdateAndQueueSave(documentId: string, update: Uint8A
   Y.applyUpdate(doc, update);
 
   cachedDoc.updateCount += 1;
+
+  // Check and trigger version snapshot every 30 edits
+  maybeTakeSnapshot(documentId, doc, cachedDoc.updateCount);
 
   // Clear existing debounced idle timer
   if (cachedDoc.saveTimer) {
