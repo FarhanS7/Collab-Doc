@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import * as Y from 'yjs';
 import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protocols/awareness';
+import { IndexeddbPersistence } from 'y-indexeddb';
 
 interface UseCollabProviderProps {
   documentId: string;
@@ -13,6 +14,21 @@ interface UseCollabProviderProps {
 export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCollabProviderProps) {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [awareness] = useState(() => new Awareness(ydoc));
+
+  // Task II.1: Bind IndexedDB persistence provider for offline Y.js state caching
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const indexedDbProvider = new IndexeddbPersistence(documentId, ydoc);
+
+    indexedDbProvider.on('synced', () => {
+      console.log(`[IndexedDB] Document ${documentId} synced from local browser storage.`);
+    });
+
+    return () => {
+      indexedDbProvider.destroy();
+    };
+  }, [documentId, ydoc]);
 
   useEffect(() => {
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
