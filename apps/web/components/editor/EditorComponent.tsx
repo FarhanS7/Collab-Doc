@@ -69,12 +69,32 @@ export default function EditorComponent({
   });
 
   // Activate WebSocket collaboration & awareness provider
-  const { status: collabStatus, awareness } = useCollabProvider({ 
+  const { status: collabStatus, awareness, isSyncing } = useCollabProvider({ 
     documentId, 
     ydoc, 
     userId, 
     userName 
   });
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleOffline = () => {
+      setToastMessage('You are offline. Edits will save locally and sync when reconnected.');
+    };
+    const handleOnline = () => {
+      setToastMessage('Back online! Syncing offline changes...');
+      setTimeout(() => setToastMessage(null), 4000);
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -254,20 +274,33 @@ export default function EditorComponent({
             <EditorContent editor={editor} className="tiptap-editor" />
           </div>
 
-          <div className="editor-status">
-            {collabStatus === 'connecting' && (
-              <span className="status-badge status-connecting">
-                <span className="status-dot dot-connecting"></span> Syncing...
-              </span>
-            )}
-            {collabStatus === 'connected' && (
+          {/* Toast Notification Banner */}
+          {toastMessage && (
+            <div className="network-toast-banner" role="alert">
+              <span>{toastMessage}</span>
+              <button onClick={() => setToastMessage(null)} aria-label="Dismiss notification">✕</button>
+            </div>
+          )}
+
+          <div className="editor-status" aria-live="polite">
+            {collabStatus === 'connected' && !isSyncing && (
               <span className="status-badge status-connected">
                 <span className="status-dot dot-connected"></span> Sync Connected
               </span>
             )}
+            {collabStatus === 'connected' && isSyncing && (
+              <span className="status-badge status-syncing">
+                <span className="status-dot dot-syncing"></span> Syncing...
+              </span>
+            )}
+            {collabStatus === 'connecting' && (
+              <span className="status-badge status-connecting">
+                <span className="status-dot dot-connecting"></span> Reconnecting...
+              </span>
+            )}
             {collabStatus === 'disconnected' && (
               <span className="status-badge status-disconnected">
-                <span className="status-dot dot-disconnected"></span> Offline
+                <span className="status-dot dot-disconnected"></span> Offline (Saving locally)
               </span>
             )}
           </div>
@@ -417,8 +450,9 @@ export default function EditorComponent({
           border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .status-connecting { color: #a8a29e; }
+        .status-connecting { color: #f59e0b; }
         .status-connected { color: #10b981; }
+        .status-syncing { color: #60a5fa; border-color: rgba(59,130,246,0.2); }
         .status-disconnected { color: #fca5a5; border-color: rgba(239,68,68,0.2); }
 
         .status-dot {
@@ -434,9 +468,30 @@ export default function EditorComponent({
           background: #10b981;
         }
 
+        .dot-syncing {
+          background: #3b82f6;
+          animation: pulse 1s infinite;
+        }
+
         .dot-disconnected {
           background: #ef4444;
         }
+
+        .network-toast-banner {
+          position: absolute; top: 4.5rem; left: 50%; transform: translateX(-50%);
+          display: flex; align-items: center; gap: 0.75rem;
+          padding: 0.5rem 1rem; border-radius: 8px;
+          background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.12);
+          color: #f1f5f9; font-size: 0.8125rem; font-weight: 500;
+          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+          backdrop-filter: blur(12px); z-index: 50;
+          animation: fade-in 0.2s ease;
+        }
+        .network-toast-banner button {
+          background: transparent; border: none; color: #94a3b8;
+          cursor: pointer; font-size: 0.875rem; padding: 0; transition: color 0.2s;
+        }
+        .network-toast-banner button:hover { color: #fff; }
 
         @keyframes pulse {
           0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; }

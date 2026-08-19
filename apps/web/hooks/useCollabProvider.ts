@@ -13,6 +13,7 @@ interface UseCollabProviderProps {
 
 export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCollabProviderProps) {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [awareness] = useState(() => new Awareness(ydoc));
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
     indexedDbProvider.on('synced', () => {
       console.log(`[IndexedDB] Document ${documentId} synced from local browser storage.`);
       if (socket.connected) {
+        setIsSyncing(true);
         const localStateVector = Y.encodeStateVector(ydoc);
         socket.emit('y-sync-step-1', localStateVector.buffer);
       }
@@ -58,17 +60,20 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
       });
 
       // Task II.2: Emit sync step 1 (Client State Vector) to kickstart reconnection sync
+      setIsSyncing(true);
       const localStateVector = Y.encodeStateVector(ydoc);
       socket.emit('y-sync-step-1', localStateVector.buffer);
     });
 
     socket.on('disconnect', () => {
       setStatus('disconnected');
+      setIsSyncing(false);
     });
 
     socket.on('connect_error', (error) => {
       console.error('[Socket Connection Error]:', error);
       setStatus('disconnected');
+      setIsSyncing(false);
     });
 
     // 1. Listen for local Y.Doc changes and publish them to the server
@@ -108,6 +113,7 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
       if (clientDiff.length > 0) {
         socket.emit('y-update', clientDiff.buffer);
       }
+      setIsSyncing(false);
     });
 
     return () => {
@@ -118,5 +124,5 @@ export function useCollabProvider({ documentId, ydoc, userId, userName }: UseCol
     };
   }, [documentId, ydoc, userId, userName, awareness]);
 
-  return { status, awareness };
+  return { status, awareness, isSyncing };
 }
