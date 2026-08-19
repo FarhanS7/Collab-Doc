@@ -34,6 +34,17 @@ export default function MemberManagementModal({
   const [success, setSuccess] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
+  // Close on Escape key press
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -105,10 +116,16 @@ export default function MemberManagementModal({
 
   return (
     <div className="member-modal-overlay" onClick={onClose}>
-      <div className="member-modal-card" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="member-modal-card" 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-modal-title"
+      >
         {/* Modal Header */}
         <div className="member-modal-header">
-          <h2>Manage Members</h2>
+          <h2 id="member-modal-title">Manage Members</h2>
           <button className="member-modal-close" onClick={onClose} aria-label="Close modal">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -249,6 +266,10 @@ export default function MemberManagementModal({
         }
         .member-modal-close:hover {
           background: rgba(255, 255, 255, 0.05); color: #fff;
+        }
+        .member-modal-close:focus-visible, .member-invite-btn:focus-visible, .member-remove-btn:focus-visible {
+          outline: 2px solid #6366f1;
+          outline-offset: 2px;
         }
 
         .member-modal-body {
